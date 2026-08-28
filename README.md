@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="garlicon.jpg" alt="Garlic SaveMgr Logo" width="400">
+</p>
+
 # 🧄 Garlic SaveMgr v6.6.1 — Cliente PC
 
 Cliente de escritorio desarrollado en Python con **PySide6** para la gestión de copias de seguridad (backup) y restauración de partidas guardadas (*saves*) exclusivamente para la consola **PS5**.
