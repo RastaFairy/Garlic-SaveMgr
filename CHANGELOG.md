@@ -88,6 +88,10 @@
 - Separación de la preferencia de UI respecto de los perfiles de consola.
 - Bloqueo de cambio de perfil, ajustes y pestañas durante operaciones activas.
 - Correcciones de XAML y recursos de interfaz detectadas durante la compilación de las iteraciones de transición.
+- Descubrimiento de consola limitado al `/24` de la interfaz IPv4 activa, en lugar de recorrer el bloque completo `192.168.0.0/16`.
+- Soporte de descubrimiento para redes IPv4 privadas `10.x.x.x`, `172.16.x.x–172.31.x.x` y `192.168.x.x`.
+- Escaneo de descubrimiento mediante un pool continuo de 32 sondas, con timeouts LAN más realistas y cancelación inmediata al encontrar una consola.
+- Prioridad inicial para la IP local y las puertas de enlace sin perder la cobertura completa del `/24`.
 
 ---
 
