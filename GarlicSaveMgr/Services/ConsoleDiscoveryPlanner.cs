@@ -66,9 +66,6 @@ public static class ConsoleDiscoveryPlanner
         var result = new List<string>();
         var seen = new HashSet<string>(alreadyScanned, StringComparer.OrdinalIgnoreCase);
 
-        // A /15 or larger can mean millions of hosts. The quick /24 pass is
-        // intentional for these oversized networks; full expansion is not
-        // attempted to avoid an unusable discovery operation.
         foreach (var network in networks)
         {
             var address = network.Address.GetAddressBytes();
@@ -85,6 +82,36 @@ public static class ConsoleDiscoveryPlanner
                 var candidate = WithHost(networkBytes, host).ToString();
                 if (seen.Add(candidate)) result.Add(candidate);
             }
+        }
+
+        return result;
+    }
+
+    public static IReadOnlyList<string> BuildWideCandidates(
+        IEnumerable<NetworkSnapshot> networks,
+        IEnumerable<string> alreadyScanned)
+    {
+        var result = new List<string>(65534);
+        var seen = new HashSet<string>(alreadyScanned, StringComparer.OrdinalIgnoreCase);
+
+        // The explicit wide fallback is intentionally limited to 192.168.0.0/16.
+        // This catches PS5 consoles on another 192.168.x subnet reachable through
+        // the local router without turning autodetection into a potentially huge
+        // scan of every RFC1918 address.
+        var has192168Interface = networks.Any(n =>
+        {
+            var bytes = n.Address.GetAddressBytes();
+            return bytes.Length == 4 && bytes[0] == 192 && bytes[1] == 168;
+        });
+
+        if (!has192168Interface)
+            return result;
+
+        var networkBytes = new byte[] { 192, 168, 0, 0 };
+        for (var host = 1; host < 65535; host++)
+        {
+            var candidate = WithHost(networkBytes, host).ToString();
+            if (seen.Add(candidate)) result.Add(candidate);
         }
 
         return result;
