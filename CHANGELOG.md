@@ -102,6 +102,7 @@
 - `build.ps1` ahora restaura, compila y ejecuta tests antes de publicar el ejecutable `win-x64` self-contained single-file.
 - Actualizadas las instrucciones de compilación local y el archivo `BUILD.txt` para eliminar el resultado histórico de una build antigua.
 - Añadido workflow de GitHub Actions sobre `windows-latest` para ejecutar restore, build Release y tests en cada `push` a `main` y en pull requests.
+- Corregida la importación del espacio de nombres `Xunit` en el proyecto de tests para que `[Fact]`, `[Theory]` e `[InlineData]` sean reconocidos durante la compilación.
 
 ---
 
