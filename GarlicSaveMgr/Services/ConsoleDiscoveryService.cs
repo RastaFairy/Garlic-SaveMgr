@@ -1,8 +1,8 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using System.Diagnostics;
 using GarlicSaveMgr.Infrastructure;
 
 namespace GarlicSaveMgr.Services;
@@ -13,7 +13,9 @@ public sealed class ConsoleDiscoveryService
 {
     public const int DefaultPort = 8082;
     public static readonly TimeSpan ProbeTimeout = TimeSpan.FromMilliseconds(750);
+    private static readonly TimeSpan WideProbeTimeout = TimeSpan.FromMilliseconds(250);
     public const int MaxConcurrency = 32;
+    private const int WideMaxConcurrency = 128;
 
     public async Task<ConsoleDiscoveryResult?> DiscoverAsync(
         int port = DefaultPort,
@@ -38,7 +40,7 @@ public sealed class ConsoleDiscoveryService
         var sw = Stopwatch.StartNew();
         using var http = CreateProbeClient();
 
-        log?.Invoke($"Buscando Garlic en {quickCandidates.Count} direcciones prioritarias...");
+        log?.Invoke($"Buscando Garlic en {quickCandidates.Count} direcciones de las redes locales...");
         var quickResult = await ProbeCandidatesAsync(
             http,
             quickCandidates,
@@ -47,6 +49,8 @@ public sealed class ConsoleDiscoveryService
             log,
             alreadyChecked: 0,
             total: quickCandidates.Count,
+            ProbeTimeout,
+            MaxConcurrency,
             ct);
         if (quickResult is not null)
         {
@@ -54,30 +58,48 @@ public sealed class ConsoleDiscoveryService
             return new ConsoleDiscoveryResult(quickResult, port, sw.Elapsed);
         }
 
-        var expandedCandidates = ConsoleDiscoveryPlanner.BuildExpandedCandidates(
-            networks,
-            quickCandidates);
-        if (expandedCandidates.Count == 0)
+        var wideCandidates = ConsoleDiscoveryPlanner.BuildWideCandidates(networks, quickCandidates);
+        if (wideCandidates.Count > 0)
         {
-            log?.Invoke("No se amplió el escaneo: las subredes son demasiado grandes o no admiten expansión segura.");
-            sw.Stop();
-            return null;
+            log?.Invoke($"No se encontró Garlic en las redes locales. Ampliando a {wideCandidates.Count} direcciones de 192.168.0.0/16 sin omitir hosts...");
+            var wideResult = await ProbeCandidatesAsync(
+                http,
+                wideCandidates,
+                port,
+                progress,
+                log,
+                alreadyChecked: quickCandidates.Count,
+                total: quickCandidates.Count + wideCandidates.Count,
+                WideProbeTimeout,
+                WideMaxConcurrency,
+                ct);
+            if (wideResult is not null)
+            {
+                sw.Stop();
+                return new ConsoleDiscoveryResult(wideResult, port, sw.Elapsed);
+            }
         }
 
-        log?.Invoke($"No se encontró Garlic en el /24 local. Ampliando la búsqueda a {expandedCandidates.Count} direcciones adicionales...");
-        var expandedResult = await ProbeCandidatesAsync(
-            http,
-            expandedCandidates,
-            port,
-            progress,
-            log,
-            alreadyChecked: quickCandidates.Count,
-            total: quickCandidates.Count + expandedCandidates.Count,
-            ct);
-        if (expandedResult is not null)
+        var expandedCandidates = ConsoleDiscoveryPlanner.BuildExpandedCandidates(networks, quickCandidates);
+        if (expandedCandidates.Count > 0)
         {
-            sw.Stop();
-            return new ConsoleDiscoveryResult(expandedResult, port, sw.Elapsed);
+            log?.Invoke($"No se encontró Garlic en la búsqueda prioritaria. Ampliando a {expandedCandidates.Count} direcciones adicionales dentro de las subredes conectadas...");
+            var expandedResult = await ProbeCandidatesAsync(
+                http,
+                expandedCandidates,
+                port,
+                progress,
+                log,
+                alreadyChecked: quickCandidates.Count + wideCandidates.Count,
+                total: quickCandidates.Count + wideCandidates.Count + expandedCandidates.Count,
+                WideProbeTimeout,
+                WideMaxConcurrency,
+                ct);
+            if (expandedResult is not null)
+            {
+                sw.Stop();
+                return new ConsoleDiscoveryResult(expandedResult, port, sw.Elapsed);
+            }
         }
 
         sw.Stop();
@@ -92,6 +114,8 @@ public sealed class ConsoleDiscoveryService
         Action<string>? log,
         int alreadyChecked,
         int total,
+        TimeSpan timeout,
+        int maxConcurrency,
         CancellationToken ct)
     {
         using var searchCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -104,7 +128,7 @@ public sealed class ConsoleDiscoveryService
                 candidates,
                 new ParallelOptions
                 {
-                    MaxDegreeOfParallelism = MaxConcurrency,
+                    MaxDegreeOfParallelism = maxConcurrency,
                     CancellationToken = searchCts.Token
                 },
                 async (ip, workerCt) =>
@@ -112,7 +136,7 @@ public sealed class ConsoleDiscoveryService
                     if (Volatile.Read(ref foundIp) is not null)
                         return;
 
-                    var found = await ProbeOneAsync(http, ip, port, workerCt);
+                    var found = await ProbeOneAsync(http, ip, port, timeout, workerCt);
                     var done = Interlocked.Increment(ref checkedCount);
                     progress?.Report((ip, done, total));
 
@@ -134,12 +158,17 @@ public sealed class ConsoleDiscoveryService
         return foundIp;
     }
 
-    private static async Task<bool> ProbeOneAsync(HttpClient http, string ip, int port, CancellationToken ct)
+    private static async Task<bool> ProbeOneAsync(
+        HttpClient http,
+        string ip,
+        int port,
+        TimeSpan timeout,
+        CancellationToken ct)
     {
         try
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            linked.CancelAfter(ProbeTimeout);
+            linked.CancelAfter(timeout);
             using var response = await http.GetAsync(
                 $"http://{ip}:{port}/api/status",
                 HttpCompletionOption.ResponseHeadersRead,
@@ -164,15 +193,15 @@ public sealed class ConsoleDiscoveryService
     {
         var handler = new SocketsHttpHandler
         {
-            ConnectTimeout = TimeSpan.FromMilliseconds(250),
-            MaxConnectionsPerServer = MaxConcurrency,
+            ConnectTimeout = TimeSpan.FromMilliseconds(100),
+            MaxConnectionsPerServer = WideMaxConcurrency,
             PooledConnectionLifetime = TimeSpan.FromSeconds(30),
             AutomaticDecompression = DecompressionMethods.None,
             UseProxy = false
         };
         return new HttpClient(handler)
         {
-            Timeout = ProbeTimeout
+            Timeout = WideProbeTimeout
         };
     }
 
