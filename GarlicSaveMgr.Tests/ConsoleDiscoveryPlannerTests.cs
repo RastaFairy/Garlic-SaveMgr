@@ -76,4 +76,26 @@ public sealed class ConsoleDiscoveryPlannerTests
         Assert.Contains("10.23.255.254", candidates);
         Assert.DoesNotContain("10.23.45.67", candidates);
     }
+
+    [Fact]
+    public void BuildWideCandidates_EnumeratesEntire19216816Range_WithoutSkippingHosts()
+    {
+        var networks = new[]
+        {
+            new ConsoleDiscoveryPlanner.NetworkSnapshot(
+                IPAddress.Parse("192.168.1.20"),
+                IPAddress.Parse("255.255.255.0"),
+                [IPAddress.Parse("192.168.1.1")])
+        };
+
+        var quick = ConsoleDiscoveryPlanner.BuildQuickCandidates(networks);
+        var wide = ConsoleDiscoveryPlanner.BuildWideCandidates(networks, quick);
+
+        Assert.Contains("192.168.0.1", wide);
+        Assert.Contains("192.168.127.123", wide);
+        Assert.Contains("192.168.50.123", wide);
+        Assert.Contains("192.168.255.254", wide);
+        Assert.DoesNotContain("192.168.1.20", wide);
+        Assert.DoesNotContain("192.168.1.1", wide);
+    }
 }
