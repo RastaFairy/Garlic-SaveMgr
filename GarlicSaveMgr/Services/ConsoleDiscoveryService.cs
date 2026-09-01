@@ -150,7 +150,6 @@ public sealed class ConsoleDiscoveryService
 
         var result = new List<string>(254);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var prefix = $"{network.Value.Network[0]}.{network.Value.Network[1]}.{network.Value.Host[2]}";
 
         void Add(byte[] address)
         {
