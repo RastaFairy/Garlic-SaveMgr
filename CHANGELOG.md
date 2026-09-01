@@ -106,6 +106,11 @@
 - Añadido `global.json` para activar `Microsoft.Testing.Platform` cuando se utiliza .NET 10 SDK.
 - Adaptado `build.ps1` para usar `dotnet test --project` en .NET 10+ y mantener la sintaxis compatible con SDK anteriores.
 - GitHub Actions actualizado a .NET 10 para reproducir el mismo flujo MTP utilizado en entornos actuales.
+- Añadido `ConsoleDiscoveryPlanner` para separar y probar la planificación de direcciones de red.
+- El descubrimiento IPv4 ya no depende de la primera interfaz activa: analiza todas las interfaces locales privadas con su máscara real y gateways.
+- El escaneo prioritario usa el `/24` de cada interfaz cuando la red es más grande y amplía la búsqueda al resto de una subred `/16` si la primera pasada no encuentra Garlic.
+- Las sondas de descubrimiento usan HTTP directo sin proxy y un timeout LAN de 750 ms para mejorar la detección de consolas reales.
+- Añadidas pruebas de planificación para `/24`, `/16`, múltiples interfaces y eliminación de direcciones duplicadas.
 
 ---
 
