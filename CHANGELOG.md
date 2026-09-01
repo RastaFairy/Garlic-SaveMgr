@@ -111,6 +111,9 @@
 - El escaneo prioritario usa el `/24` de cada interfaz cuando la red es más grande y amplía la búsqueda al resto de una subred `/16` si la primera pasada no encuentra Garlic.
 - Las sondas de descubrimiento usan HTTP directo sin proxy y un timeout LAN de 750 ms para mejorar la detección de consolas reales.
 - Añadidas pruebas de planificación para `/24`, `/16`, múltiples interfaces y eliminación de direcciones duplicadas.
+- Añadida una segunda fase de autodetección que recorre exhaustivamente `192.168.0.0/16` cuando existe una interfaz `192.168.x.x`, evitando perder una PS5 situada en otro `/24` accesible por el router.
+- La búsqueda ampliada usa 128 sondas paralelas con timeout reducido de 250 ms, manteniendo la cobertura completa sin muestrear direcciones.
+- El progreso de autodetección se basa en direcciones realmente comprobadas y no en una secuencia artificial de IP para evitar aparentes saltos producidos por la concurrencia.
 
 ---
 
