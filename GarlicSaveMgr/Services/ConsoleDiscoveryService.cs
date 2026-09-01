@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Diagnostics;
+using GarlicSaveMgr.Infrastructure;
 
 namespace GarlicSaveMgr.Services;
 
@@ -11,7 +12,7 @@ public sealed record ConsoleDiscoveryResult(string Ip, int Port, TimeSpan Elapse
 public sealed class ConsoleDiscoveryService
 {
     public const int DefaultPort = 8082;
-    public static readonly TimeSpan ProbeTimeout = TimeSpan.FromMilliseconds(150);
+    public static readonly TimeSpan ProbeTimeout = TimeSpan.FromMilliseconds(750);
     public const int MaxConcurrency = 32;
 
     public async Task<ConsoleDiscoveryResult?> DiscoverAsync(
@@ -20,110 +21,142 @@ public sealed class ConsoleDiscoveryService
         Action<string>? log = null,
         CancellationToken ct = default)
     {
-        var candidates = BuildCandidates();
-        if (candidates.Count == 0)
+        var networks = GetActiveIpv4Networks();
+        if (networks.Count == 0)
+        {
+            log?.Invoke("No se encontraron interfaces IPv4 locales utilizables.");
+            return null;
+        }
+
+        foreach (var network in networks)
+            log?.Invoke($"Interfaz IPv4: {network.Address} / {network.Mask}");
+
+        var quickCandidates = ConsoleDiscoveryPlanner.BuildQuickCandidates(networks);
+        if (quickCandidates.Count == 0)
             return null;
 
         var sw = Stopwatch.StartNew();
         using var http = CreateProbeClient();
-        using var searchCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        using var gate = new SemaphoreSlim(MaxConcurrency, MaxConcurrency);
-        var checkedCount = 0;
 
-        var tasks = candidates
-            .Select(ip => ProbeOneAsync(
-                http,
-                gate,
-                ip,
-                port,
-                progress,
-                log,
-                candidates.Count,
-                () => Interlocked.Increment(ref checkedCount),
-                searchCts.Token))
-            .ToList();
-
-        try
+        log?.Invoke($"Buscando Garlic en {quickCandidates.Count} direcciones prioritarias...");
+        var quickResult = await ProbeCandidatesAsync(
+            http,
+            quickCandidates,
+            port,
+            progress,
+            log,
+            alreadyChecked: 0,
+            total: quickCandidates.Count,
+            ct);
+        if (quickResult is not null)
         {
-            while (tasks.Count > 0)
-            {
-                ct.ThrowIfCancellationRequested();
-                var completed = await Task.WhenAny(tasks);
-                tasks.Remove(completed);
-
-                var result = await completed;
-                if (!result.Found)
-                    continue;
-
-                searchCts.Cancel();
-                try { await Task.WhenAll(tasks); }
-                catch (OperationCanceledException) { }
-
-                sw.Stop();
-                return new ConsoleDiscoveryResult(result.Ip, port, sw.Elapsed);
-            }
+            sw.Stop();
+            return new ConsoleDiscoveryResult(quickResult, port, sw.Elapsed);
         }
-        finally
+
+        var expandedCandidates = ConsoleDiscoveryPlanner.BuildExpandedCandidates(
+            networks,
+            quickCandidates);
+        if (expandedCandidates.Count == 0)
         {
-            searchCts.Cancel();
-            try { await Task.WhenAll(tasks); }
-            catch (OperationCanceledException) { }
+            log?.Invoke("No se amplió el escaneo: las subredes son demasiado grandes o no admiten expansión segura.");
+            sw.Stop();
+            return null;
+        }
+
+        log?.Invoke($"No se encontró Garlic en el /24 local. Ampliando la búsqueda a {expandedCandidates.Count} direcciones adicionales...");
+        var expandedResult = await ProbeCandidatesAsync(
+            http,
+            expandedCandidates,
+            port,
+            progress,
+            log,
+            alreadyChecked: quickCandidates.Count,
+            total: quickCandidates.Count + expandedCandidates.Count,
+            ct);
+        if (expandedResult is not null)
+        {
+            sw.Stop();
+            return new ConsoleDiscoveryResult(expandedResult, port, sw.Elapsed);
         }
 
         sw.Stop();
         return null;
     }
 
-    private static async Task<(string Ip, bool Found)> ProbeOneAsync(
+    private static async Task<string?> ProbeCandidatesAsync(
         HttpClient http,
-        SemaphoreSlim gate,
-        string ip,
+        IReadOnlyList<string> candidates,
         int port,
         IProgress<(string Ip, int Checked, int Total)>? progress,
         Action<string>? log,
+        int alreadyChecked,
         int total,
-        Func<int> incrementChecked,
         CancellationToken ct)
     {
-        var found = false;
+        using var searchCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var checkedCount = alreadyChecked;
+        string? foundIp = null;
 
         try
         {
-            await gate.WaitAsync(ct);
-            try
-            {
-                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                linked.CancelAfter(ProbeTimeout);
-                using var response = await http.GetAsync(
-                    $"http://{ip}:{port}/api/status",
-                    HttpCompletionOption.ResponseHeadersRead,
-                    linked.Token);
-                found = response.IsSuccessStatusCode;
-                return (ip, found);
-            }
-            finally
-            {
-                gate.Release();
-            }
+            await Parallel.ForEachAsync(
+                candidates,
+                new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = MaxConcurrency,
+                    CancellationToken = searchCts.Token
+                },
+                async (ip, workerCt) =>
+                {
+                    if (Volatile.Read(ref foundIp) is not null)
+                        return;
+
+                    var found = await ProbeOneAsync(http, ip, port, workerCt);
+                    var done = Interlocked.Increment(ref checkedCount);
+                    progress?.Report((ip, done, total));
+
+                    if (!found)
+                        return;
+
+                    if (Interlocked.CompareExchange(ref foundIp, ip, null) is null)
+                    {
+                        log?.Invoke($"Consola encontrada en {ip}:{port}");
+                        searchCts.Cancel();
+                    }
+                });
+        }
+        catch (OperationCanceledException) when (searchCts.IsCancellationRequested && !ct.IsCancellationRequested)
+        {
+            // Expected when a worker finds the console and cancels the remaining probes.
+        }
+
+        return foundIp;
+    }
+
+    private static async Task<bool> ProbeOneAsync(HttpClient http, string ip, int port, CancellationToken ct)
+    {
+        try
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            linked.CancelAfter(ProbeTimeout);
+            using var response = await http.GetAsync(
+                $"http://{ip}:{port}/api/status",
+                HttpCompletionOption.ResponseHeadersRead,
+                linked.Token);
+            return response.IsSuccessStatusCode;
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            return (ip, false);
+            return false;
         }
         catch (HttpRequestException)
         {
-            return (ip, false);
+            return false;
         }
         catch (SocketException)
         {
-            return (ip, false);
-        }
-        finally
-        {
-            var done = incrementChecked();
-            progress?.Report((ip, done, total));
-            // Deliberately do not log every address: per-IP file I/O dominated the old scan timing.
-            if (found) log?.Invoke($"Consola encontrada en {ip}:{port}");
+            return false;
         }
     }
 
@@ -131,10 +164,11 @@ public sealed class ConsoleDiscoveryService
     {
         var handler = new SocketsHttpHandler
         {
-            ConnectTimeout = TimeSpan.FromMilliseconds(100),
+            ConnectTimeout = TimeSpan.FromMilliseconds(250),
             MaxConnectionsPerServer = MaxConcurrency,
             PooledConnectionLifetime = TimeSpan.FromSeconds(30),
-            AutomaticDecompression = DecompressionMethods.None
+            AutomaticDecompression = DecompressionMethods.None,
+            UseProxy = false
         };
         return new HttpClient(handler)
         {
@@ -142,47 +176,11 @@ public sealed class ConsoleDiscoveryService
         };
     }
 
-    private static List<string> BuildCandidates()
+    private static List<ConsoleDiscoveryPlanner.NetworkSnapshot> GetActiveIpv4Networks()
     {
-        var network = GetActiveIpv4Network();
-        if (network is null)
-            return [];
-
-        var result = new List<string>(254);
+        var result = new List<ConsoleDiscoveryPlanner.NetworkSnapshot>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        void Add(byte[] address)
-        {
-            var ip = $"{address[0]}.{address[1]}.{address[2]}.{address[3]}";
-            if (address[3] is 0 or 255)
-                return;
-            if (seen.Add(ip))
-                result.Add(ip);
-        }
-
-        // Prioritize the local host and default gateway so common network
-        // configurations are checked immediately, without sacrificing coverage.
-        Add(network.Value.Host);
-        foreach (var gateway in network.Value.Gateways)
-            Add(gateway);
-
-        for (var host = 1; host <= 254; host++)
-        {
-            var address = new[]
-            {
-                network.Value.Network[0],
-                network.Value.Network[1],
-                network.Value.Host[2],
-                (byte)host
-            };
-            Add(address);
-        }
-
-        return result;
-    }
-
-    private static (byte[] Network, byte[] Host, List<byte[]> Gateways)? GetActiveIpv4Network()
-    {
         foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
         {
             if (ni.OperationalStatus != OperationalStatus.Up ||
@@ -192,32 +190,42 @@ public sealed class ConsoleDiscoveryService
             try
             {
                 var properties = ni.GetIPProperties();
+                var gateways = properties.GatewayAddresses
+                    .Where(g => g.Address.AddressFamily == AddressFamily.InterNetwork)
+                    .Select(g => g.Address)
+                    .Where(IsLocalNetworkAddress)
+                    .ToList();
+
                 foreach (var ua in properties.UnicastAddresses)
                 {
                     if (ua.Address.AddressFamily != AddressFamily.InterNetwork ||
-                        ua.IPv4Mask is null)
+                        ua.IPv4Mask is null ||
+                        !IsLocalNetworkAddress(ua.Address))
                         continue;
 
-                    var address = ua.Address.GetAddressBytes();
-                    var mask = ua.IPv4Mask.GetAddressBytes();
-                    var network = new byte[4];
-                    for (var i = 0; i < 4; i++)
-                        network[i] = (byte)(address[i] & mask[i]);
-
-                    var gateways = properties.GatewayAddresses
-                        .Where(g => g.Address.AddressFamily == AddressFamily.InterNetwork)
-                        .Select(g => g.Address.GetAddressBytes())
-                        .ToList();
-
-                    return (network, address, gateways);
+                    var key = $"{ua.Address}|{ua.IPv4Mask}";
+                    if (seen.Add(key))
+                        result.Add(new ConsoleDiscoveryPlanner.NetworkSnapshot(ua.Address, ua.IPv4Mask, gateways));
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore interfaces that cannot be queried and try the next active one.
+                LogService.Write($"Descubrimiento: no se pudo consultar la interfaz {ni.Name}: {ex.Message}", "WARN");
             }
         }
 
-        return null;
+        return result;
+    }
+
+    private static bool IsLocalNetworkAddress(IPAddress address)
+    {
+        if (address.AddressFamily != AddressFamily.InterNetwork)
+            return false;
+
+        var bytes = address.GetAddressBytes();
+        return bytes[0] == 10 ||
+               bytes[0] == 169 && bytes[1] == 254 ||
+               bytes[0] == 192 && bytes[1] == 168 ||
+               bytes[0] == 172 && bytes[1] is >= 16 and <= 31;
     }
 }
