@@ -1,0 +1,7 @@
+{
+  "githubApiUrl": "https://api.github.com/repos/earthonion/garlic-savemgr/releases/latest",
+  "pldmgrCatalogUrls": [
+    "https://shark-ps.github.io/PS5-PLDMGR-AutoUpdater/json/ps5_saves.json",
+    "https://nexgen999.github.io/PS5-Super-PLDMGR-Auto-Updater/json/ps5_saves.json"
+  ]
+}
