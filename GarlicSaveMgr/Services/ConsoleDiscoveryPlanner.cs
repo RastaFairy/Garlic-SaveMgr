@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Net;
 
 namespace GarlicSaveMgr.Services;
@@ -28,12 +29,9 @@ public static class ConsoleDiscoveryPlanner
             {
                 var networkBytes = And(address, mask);
                 var hostBits = 32 - prefixLength;
-                var hostCount = hostBits >= 31 ? 0 : (1 << hostBits) - 2;
+                var hostCount = (1 << hostBits) - 2;
                 for (var host = 1; host <= hostCount; host++)
-                {
-                    var candidate = WithHost(networkBytes, prefixLength, host);
-                    Add(candidate);
-                }
+                    Add(WithHost(networkBytes, host));
             }
             else
             {
@@ -55,6 +53,7 @@ public static class ConsoleDiscoveryPlanner
                 address.Equals(IPAddress.Any) ||
                 address.Equals(IPAddress.None))
                 return;
+
             var value = address.ToString();
             if (seen.Add(value)) result.Add(value);
         }
@@ -67,15 +66,14 @@ public static class ConsoleDiscoveryPlanner
         var result = new List<string>();
         var seen = new HashSet<string>(alreadyScanned, StringComparer.OrdinalIgnoreCase);
 
+        // A /15 or larger can mean millions of hosts. The quick /24 pass is
+        // intentional for these oversized networks; full expansion is not
+        // attempted to avoid an unusable discovery operation.
         foreach (var network in networks)
         {
             var address = network.Address.GetAddressBytes();
             var mask = network.Mask.GetAddressBytes();
             var prefixLength = PrefixLength(mask);
-
-            // A /15 or larger can mean millions of hosts. The quick /24 pass is
-            // intentional for these oversized networks; full expansion is not
-            // attempted to avoid an unusable discovery operation.
             if (prefixLength < 16 || prefixLength >= 31)
                 continue;
 
@@ -84,7 +82,7 @@ public static class ConsoleDiscoveryPlanner
             var hostCount = (1 << hostBits) - 2;
             for (var host = 1; host <= hostCount; host++)
             {
-                var candidate = WithHost(networkBytes, prefixLength, host).ToString();
+                var candidate = WithHost(networkBytes, host).ToString();
                 if (seen.Add(candidate)) result.Add(candidate);
             }
         }
@@ -99,19 +97,12 @@ public static class ConsoleDiscoveryPlanner
         return result;
     }
 
-    private static IPAddress WithHost(byte[] networkBytes, int prefixLength, int host)
+    private static IPAddress WithHost(byte[] networkBytes, int host)
     {
-        var bytes = (byte[])networkBytes.Clone();
-        var hostBits = 32 - prefixLength;
-        var value = (uint)host;
-        for (var bit = 0; bit < hostBits; bit++)
-        {
-            var absoluteBit = 31 - bit;
-            var byteIndex = absoluteBit / 8;
-            var bitIndex = absoluteBit % 8;
-            if ((value & (1u << bit)) != 0)
-                bytes[byteIndex] |= (byte)(1 << bitIndex);
-        }
+        var networkValue = BinaryPrimitives.ReadUInt32BigEndian(networkBytes);
+        var candidate = networkValue | (uint)host;
+        var bytes = new byte[4];
+        BinaryPrimitives.WriteUInt32BigEndian(bytes, candidate);
         return new IPAddress(bytes);
     }
 
@@ -120,10 +111,9 @@ public static class ConsoleDiscoveryPlanner
         var prefix = 0;
         foreach (var octet in mask)
         {
-            var value = octet;
             for (var bit = 7; bit >= 0; bit--)
             {
-                if ((value & (1 << bit)) == 0) return prefix;
+                if ((octet & (1 << bit)) == 0) return prefix;
                 prefix++;
             }
         }
