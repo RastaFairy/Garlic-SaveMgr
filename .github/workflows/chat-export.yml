@@ -14,11 +14,11 @@ jobs:
 
       - name: Create source archive
         run: |
-          git archive --format=zip --output=Garlic-SaveMgr-source-2da1d0bb.zip HEAD
+          git archive --format=zip --output=Garlic-SaveMgr-source-2da1d0bb.zip 2da1d0bb0e9824889658c76507d8a58c8415c702
 
       - name: Upload source archive
         uses: actions/upload-artifact@v4
         with:
-          name: Garlic-SaveMgr-source
+          name: Garlic-SaveMgr-source-clean
           path: Garlic-SaveMgr-source-2da1d0bb.zip
           if-no-files-found: error
