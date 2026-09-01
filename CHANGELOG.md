@@ -97,6 +97,11 @@
 - Los valores predeterminados de las fuentes del payload se mantienen cuando la configuración externa no existe o no es válida.
 - Registro de diagnóstico añadido en `PayloadLauncherService` para fallos al consultar Garlic, leer metadata de caché, verificar SHA-256 y limpiar archivos temporales.
 - La limpieza de temporales se realiza mediante una rutina de diagnóstico que registra el error sin ocultarlo.
+- Añadido `GarlicSaveMgr.Tests` como proyecto xUnit v3 para la lógica de `Services`, integrado en `GarlicSaveMgr.sln`.
+- Añadidas pruebas deterministas para la comparación de versiones del payload mediante `PayloadLauncherService.CompareVersions`.
+- `build.ps1` ahora restaura, compila y ejecuta tests antes de publicar el ejecutable `win-x64` self-contained single-file.
+- Actualizadas las instrucciones de compilación local y el archivo `BUILD.txt` para eliminar el resultado histórico de una build antigua.
+- Añadido workflow de GitHub Actions sobre `windows-latest` para ejecutar restore, build Release y tests en cada `push` a `main` y en pull requests.
 
 ---
 
