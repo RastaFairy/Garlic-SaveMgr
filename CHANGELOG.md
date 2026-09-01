@@ -88,10 +88,15 @@
 - Separación de la preferencia de UI respecto de los perfiles de consola.
 - Bloqueo de cambio de perfil, ajustes y pestañas durante operaciones activas.
 - Correcciones de XAML y recursos de interfaz detectadas durante la compilación de las iteraciones de transición.
+- Eliminado el duplicado histórico de `Garlic_SaveMgr_main.py` de la raíz; se conserva el snapshot de `legacy/python-6.6.1/`.
 - Descubrimiento de consola limitado al `/24` de la interfaz IPv4 activa, en lugar de recorrer el bloque completo `192.168.0.0/16`.
 - Soporte de descubrimiento para redes IPv4 privadas `10.x.x.x`, `172.16.x.x–172.31.x.x` y `192.168.x.x`.
 - Escaneo de descubrimiento mediante un pool continuo de 32 sondas, con timeouts LAN más realistas y cancelación inmediata al encontrar una consola.
 - Prioridad inicial para la IP local y las puertas de enlace sin perder la cobertura completa del `/24`.
+- Fuentes del payload desacopladas del ejecutable mediante `data/payload_sources.json`, con una lista extensible de catálogos PLDMGR y API de GitHub configurable.
+- Los valores predeterminados de las fuentes del payload se mantienen cuando la configuración externa no existe o no es válida.
+- Registro de diagnóstico añadido en `PayloadLauncherService` para fallos al consultar Garlic, leer metadata de caché, verificar SHA-256 y limpiar archivos temporales.
+- La limpieza de temporales se realiza mediante una rutina de diagnóstico que registra el error sin ocultarlo.
 
 ---
 
