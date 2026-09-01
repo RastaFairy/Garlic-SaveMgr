@@ -1,4 +1,6 @@
-Garlic SaveMgr v6.7.5-gpt
+Garlic SaveMgr v6.8
 Build target: net8.0-windows / win-x64
-Build result: 0 warnings, 0 errors
+Canonical build: build.ps1
+Build pipeline: restore → build Release → test → publish
 Publish: self-contained single-file PE32+ x64
+Build result: generado en el entorno que ejecute build.ps1; no se fija aquí un resultado histórico.
