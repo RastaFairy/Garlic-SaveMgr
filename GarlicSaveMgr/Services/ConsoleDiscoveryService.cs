@@ -140,16 +140,17 @@ public sealed class ConsoleDiscoveryService
 
                     var address = ua.Address.GetAddressBytes();
                     var mask = ua.IPv4Mask.GetAddressBytes();
-
-                    // Use the real interface mask to identify the active local network.
                     var network = new byte[4];
                     for (var i = 0; i < 4; i++)
                         network[i] = (byte)(address[i] & mask[i]);
 
-                    // Discovery intentionally probes the /24 containing the active IP.
-                    // This keeps discovery bounded while working with 192.168.x.x,
-                    // 10.x.x.x and 172.16-31.x.x networks alike.
-                    return $"{address[0]}.{address[1]}.{address[2]}";
+                    // The discovery scope is one /24. For a real /24 (the normal
+                    // LAN case), the interface mask determines the exact network.
+                    // For larger/smaller masks, keep the /24 containing the active IP.
+                    var prefixBits = CountPrefixBits(mask);
+                    var subnet = prefixBits == 24 ? network : address;
+
+                    return $"{subnet[0]}.{subnet[1]}.{subnet[2]}";
                 }
             }
             catch
@@ -159,5 +160,23 @@ public sealed class ConsoleDiscoveryService
         }
 
         return null;
+    }
+
+    private static int CountPrefixBits(byte[] mask)
+    {
+        var bits = 0;
+        foreach (var value in mask)
+        {
+            var current = value;
+            while (current != 0)
+            {
+                bits += current >> 7;
+                current <<= 1;
+            }
+
+            if (value != byte.MaxValue)
+                break;
+        }
+        return bits;
     }
 }
