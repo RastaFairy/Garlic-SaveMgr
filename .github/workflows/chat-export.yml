@@ -1,0 +1,24 @@
+name: Chat source export
+
+on:
+  push:
+    branches:
+      - chat-export-20260902
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create source archive
+        run: |
+          git archive --format=zip --output=Garlic-SaveMgr-source-2da1d0bb.zip HEAD
+
+      - name: Upload source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: Garlic-SaveMgr-source
+          path: Garlic-SaveMgr-source-2da1d0bb.zip
+          if-no-files-found: error
