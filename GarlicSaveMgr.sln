@@ -5,8 +5,6 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GarlicSaveMgr", "GarlicSaveMgr\GarlicSaveMgr.csproj", "{FDE62895-9D2F-4881-8A54-CA0F3F78D539}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GarlicSaveMgr.Tests", "GarlicSaveMgr.Tests\GarlicSaveMgr.Tests.csproj", "{7F0F04D9-3E3F-48BA-8B77-E6C8E82B1D25}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,9 +18,5 @@ Global
 		{FDE62895-9D2F-4881-8A54-CA0F3F78D539}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FDE62895-9D2F-4881-8A54-CA0F3F78D539}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FDE62895-9D2F-4881-8A54-CA0F3F78D539}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7F0F04D9-3E3F-48BA-8B77-E6C8E82B1D25}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7F0F04D9-3E3F-48BA-8B77-E6C8E82B1D25}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7F0F04D9-3E3F-48BA-8B77-E6C8E82B1D25}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7F0F04D9-3E3F-48BA-8B77-E6C8E82B1D25}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
