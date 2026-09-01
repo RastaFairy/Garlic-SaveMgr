@@ -2,13 +2,17 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $solution = Join-Path $root 'GarlicSaveMgr.sln'
 $project = Join-Path $root 'GarlicSaveMgr\GarlicSaveMgr.csproj'
+$testProject = Join-Path $root 'GarlicSaveMgr.Tests\GarlicSaveMgr.Tests.csproj'
 $publish = Join-Path $root 'publish'
 
 Write-Host '== Garlic SaveMgr C# v6.8 =='
 Write-Host 'Comprobando .NET SDK...'
 $dotnetVersion = dotnet --version
-if ($LASTEXITCODE -ne 0) { throw 'No se encontró el comando dotnet. Instala el SDK de .NET 8 antes de compilar.' }
+if ($LASTEXITCODE -ne 0) { throw 'No se encontró el comando dotnet. Instala el SDK de .NET 8 o posterior antes de compilar.' }
 Write-Host "SDK detectado: $dotnetVersion"
+
+$versionMatch = [regex]::Match($dotnetVersion, '^(\d+)')
+$dotnetMajor = if ($versionMatch.Success) { [int]$versionMatch.Groups[1].Value } else { 0 }
 
 Write-Host 'Limpiando...'
 if (Test-Path $publish) { Remove-Item $publish -Recurse -Force }
@@ -19,7 +23,13 @@ if ($LASTEXITCODE -ne 0) { throw 'La restauración de NuGet ha fallado.' }
 dotnet build $solution -c Release --no-restore
 if ($LASTEXITCODE -ne 0) { throw 'La compilación de la solución ha fallado.' }
 
-dotnet test (Join-Path $root 'GarlicSaveMgr.Tests\GarlicSaveMgr.Tests.csproj') -c Release --no-build --verbosity normal
+Write-Host 'Ejecutando tests...'
+if ($dotnetMajor -ge 10) {
+    Write-Host 'SDK .NET 10+: usando Microsoft.Testing.Platform.'
+    dotnet test --project $testProject -c Release --no-build --verbosity normal
+} else {
+    dotnet test $testProject -c Release --no-build --verbosity normal
+}
 if ($LASTEXITCODE -ne 0) { throw 'Los tests han fallado.' }
 
 Write-Host 'Publicando win-x64 self-contained, single-file...'
