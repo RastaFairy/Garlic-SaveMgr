@@ -23,8 +23,9 @@ public sealed class PayloadLauncherService
 
     // ── Constantes privadas ─────────────────────────────────────────────────────
 
-    private const string GitHubApiUrl  = "https://api.github.com/repos/earthonion/garlic-savemgr/releases/latest";
-    private static readonly string[] PldmgrCatalogUrls =
+    private const string PayloadSourcesConfigFile = "payload_sources.json";
+    private const string DefaultGitHubApiUrl = "https://api.github.com/repos/earthonion/garlic-savemgr/releases/latest";
+    private static readonly string[] DefaultPldmgrCatalogUrls =
     [
         "https://shark-ps.github.io/PS5-PLDMGR-AutoUpdater/json/ps5_saves.json",
         "https://nexgen999.github.io/PS5-Super-PLDMGR-Auto-Updater/json/ps5_saves.json"
@@ -45,6 +46,7 @@ public sealed class PayloadLauncherService
     // ── Campos ──────────────────────────────────────────────────────────────────
 
     private readonly string _cacheDir;
+    private readonly PayloadSourceConfig _payloadSources;
 
     // ── Constructor ─────────────────────────────────────────────────────────────
 
@@ -52,6 +54,7 @@ public sealed class PayloadLauncherService
     {
         _cacheDir = AppPaths.PayloadDirectory;
         Directory.CreateDirectory(_cacheDir);
+        _payloadSources = LoadPayloadSourceConfig();
     }
 
     // ── API pública ─────────────────────────────────────────────────────────────
@@ -126,7 +129,7 @@ public sealed class PayloadLauncherService
     private async Task<(string? Version, bool Cached, string? Sha256)> PrepareLatestPayloadCacheCoreAsync(
         Action<string, string>? log = null,
         CancellationToken ct = default)
-{
+    {
         try
         {
             var release = await FetchLatestReleaseAsync(ct);
@@ -223,17 +226,16 @@ public sealed class PayloadLauncherService
     // ── Lógica interna ──────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Consulta la API de GitHub para obtener datos del último release.
-    /// Devuelve null si la petición falla.
+    /// Consulta los catálogos configurados y, si ninguno devuelve un payload válido,
+    /// usa la API de GitHub como fallback.
     /// </summary>
-    private static async Task<ReleaseInfo?> FetchLatestReleaseAsync(CancellationToken ct)
+    private async Task<ReleaseInfo?> FetchLatestReleaseAsync(CancellationToken ct)
     {
-        // 1. Consultar varios catálogos PLDMGR y elegir la versión más alta.
-        // Así evitamos quedar bloqueados por una copia CDN/repositorio desactualizada.
+        // 1. Consultar todos los catálogos configurados y elegir la versión más alta.
         try
         {
             var candidates = new List<ReleaseInfo>();
-            foreach (var catalogUrl in PldmgrCatalogUrls)
+            foreach (var catalogUrl in _payloadSources.PldmgrCatalogUrls)
             {
                 try
                 {
@@ -290,10 +292,16 @@ public sealed class PayloadLauncherService
 
         // 2. Fallback: GitHub Releases. Algunas ramas/repositorios históricos no
         // exponen el mismo catálogo que PLDMGR.
+        if (string.IsNullOrWhiteSpace(_payloadSources.GitHubApiUrl))
+        {
+            LogService.Write("GitHub fallback deshabilitado en payload_sources.json.", "WARN");
+            return null;
+        }
+
         try
         {
             using var http = CreateHttpClient();
-            using var response = await http.GetAsync(GitHubApiUrl, ct);
+            using var response = await http.GetAsync(_payloadSources.GitHubApiUrl, ct);
             if (!response.IsSuccessStatusCode)
             {
                 LogService.Write($"GitHub API HTTP {(int)response.StatusCode}", "WARN");
@@ -535,6 +543,76 @@ public sealed class PayloadLauncherService
         return false;
     }
 
+    // ── Configuración externa del payload ────────────────────────────────────────
+
+    private static PayloadSourceConfig LoadPayloadSourceConfig()
+    {
+        var path = Path.Combine(AppPaths.AppDataDirectory, PayloadSourcesConfigFile);
+        var defaults = new PayloadSourceConfig(
+            DefaultGitHubApiUrl,
+            DefaultPldmgrCatalogUrls.ToList());
+
+        try
+        {
+            Directory.CreateDirectory(AppPaths.AppDataDirectory);
+
+            if (!File.Exists(path))
+            {
+                File.WriteAllText(path, JsonSerializer.Serialize(defaults, new JsonSerializerOptions { WriteIndented = true }));
+                LogService.Write($"Configuración de payload creada en {path}.", "INFO");
+                return defaults;
+            }
+
+            var json = File.ReadAllText(path);
+            var configured = JsonSerializer.Deserialize<PayloadSourceConfig>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (configured is null)
+            {
+                LogService.Write($"Configuración de payload vacía o inválida: {path}. Usando valores predeterminados.", "WARN");
+                return defaults;
+            }
+
+            var catalogs = configured.PldmgrCatalogUrls?
+                .Where(IsValidHttpUrl)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList() ?? [];
+
+            if (configured.PldmgrCatalogUrls is { Count: > 0 } && catalogs.Count == 0)
+            {
+                LogService.Write($"Los catálogos PLDMGR configurados no contienen URLs HTTP(S) válidas: {path}. Usando valores predeterminados.", "WARN");
+                catalogs = defaults.PldmgrCatalogUrls.ToList();
+            }
+
+            if (configured.PldmgrCatalogUrls is null)
+                catalogs = defaults.PldmgrCatalogUrls.ToList();
+
+            var githubUrl = string.IsNullOrWhiteSpace(configured.GitHubApiUrl)
+                ? defaults.GitHubApiUrl
+                : configured.GitHubApiUrl.Trim();
+
+            if (!string.IsNullOrWhiteSpace(githubUrl) && !IsValidHttpUrl(githubUrl))
+            {
+                LogService.Write($"URL de GitHub inválida en {path}: {githubUrl}. Usando valor predeterminado.", "WARN");
+                githubUrl = defaults.GitHubApiUrl;
+            }
+
+            LogService.Write($"Configuración de payload cargada: {catalogs.Count} catálogo(s) PLDMGR.", "INFO");
+            return new PayloadSourceConfig(githubUrl, catalogs);
+        }
+        catch (Exception ex)
+        {
+            LogService.Write($"No se pudo cargar payload_sources.json ({ex.Message}). Usando valores predeterminados.", "WARN");
+            return defaults;
+        }
+    }
+
+    private static bool IsValidHttpUrl(string value)
+        => Uri.TryCreate(value, UriKind.Absolute, out var uri)
+           && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
     // ── Caché local ─────────────────────────────────────────────────────────────
 
     private static CachedMeta? LoadCachedMeta(string path)
@@ -628,4 +706,8 @@ public sealed class PayloadLauncherService
         string Checksum,
         string Source,
         long Size);
+
+    private sealed record PayloadSourceConfig(
+        string? GitHubApiUrl,
+        List<string> PldmgrCatalogUrls);
 }
