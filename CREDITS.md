@@ -39,7 +39,7 @@ El cliente actual para PC es responsable de:
 - el empaquetado y preparación de releases;
 - la documentación y mantenimiento del proyecto.
 
-La versión pública actual es **v6.6.1**.
+La versión pública actual de esta rama es **v6.8**. La versión histórica de referencia del proyecto Python es **v6.6.1**.
 
 ---
 
@@ -47,13 +47,13 @@ La versión pública actual es **v6.6.1**.
 
 Las siguientes tecnologías forman parte del entorno utilizado directamente por la aplicación actual para PC.
 
-## Python
+## Python (implementación histórica)
 
 **Proyecto:** Python  
 **Web:** https://www.python.org/  
 **Licencia:** Python Software Foundation License y licencias aplicables al componente distribuido.
 
-Garlic SaveMgr está implementado en Python.
+La versión histórica del cliente Garlic SaveMgr está implementada en Python; la versión pública v6.8 se distribuye como implementación C#/.NET 8 + WPF.
 
 La aplicación utiliza tanto Python como su biblioteca estándar para funciones esenciales como:
 
@@ -67,7 +67,7 @@ La aplicación utiliza tanto Python como su biblioteca estándar para funciones 
 - estructuras de datos;
 - operaciones auxiliares de la aplicación.
 
-Python constituye la base de ejecución del cliente para PC.
+Python constituye la base histórica de ejecución del cliente para PC. La implementación pública v6.8 utiliza C#/.NET 8 + WPF.
 
 Información legal y de licenciamiento:
 
@@ -75,12 +75,30 @@ https://www.python.org/psf/about/legal-and-policies/
 
 ---
 
+
+## C# / .NET 8 + WPF
+
+La versión pública **v6.8** utiliza una implementación del cliente de escritorio en **C# / .NET 8 + WPF**.
+
+Esta implementación cubre la interfaz gráfica, comunicación HTTP con Garlic, gestión de backups y restauraciones, perfiles, detección de consolas, metadata, carátulas, caché del payload y diagnóstico.
+
+Tecnologías principales:
+
+- C# / .NET 8
+- WPF
+- HttpClient
+- bibliotecas estándar de .NET
+
+No se requiere una dependencia NuGet externa para la lógica principal de la aplicación.
+
+El código actual se distribuye como evolución de la aplicación original y debe conservar las obligaciones de licencia y atribución correspondientes.
+
 ## PySide6 / Qt for Python
 
 **Proyecto:** Qt for Python / PySide6  
 **Web:** https://doc.qt.io/qtforpython-6/
 
-PySide6 proporciona el framework gráfico utilizado por Garlic SaveMgr.
+PySide6 proporcionó el framework gráfico de la implementación Python histórica.
 
 La aplicación utiliza PySide6 para elementos como:
 
@@ -119,7 +137,7 @@ Para cualquier redistribución, debe consultarse la documentación y los términ
 **Repositorio:** https://github.com/psf/requests  
 **Licencia:** Apache License 2.0
 
-Garlic SaveMgr utiliza Requests como biblioteca de comunicación HTTP entre el cliente de PC y el servicio proporcionado en la PS5.
+La implementación Python histórica utiliza Requests para comunicación HTTP. La versión pública v6.8 utiliza `HttpClient` de .NET.
 
 Se utiliza para operaciones como:
 
@@ -568,6 +586,9 @@ Los nombres de proyectos, marcas y demás elementos identificativos pertenecen a
 
 ## Última actualización
 
-Este documento corresponde a la arquitectura y dependencias conocidas del proyecto **Garlic SaveMgr v6.6.1**.
+Este documento corresponde a la arquitectura, dependencias y atribuciones de **Garlic SaveMgr v6.8**, manteniendo la procedencia histórica de la versión Python 6.6.1.
 
 Cualquier cambio futuro en las dependencias, componentes externos o infraestructura utilizada deberá reflejarse en este archivo.
+
+---
+
