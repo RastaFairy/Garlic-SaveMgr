@@ -11,9 +11,8 @@ public sealed record ConsoleDiscoveryResult(string Ip, int Port, TimeSpan Elapse
 public sealed class ConsoleDiscoveryService
 {
     public const int DefaultPort = 8082;
-    public static readonly TimeSpan ProbeTimeout = TimeSpan.FromMilliseconds(10);
+    public static readonly TimeSpan ProbeTimeout = TimeSpan.FromMilliseconds(150);
     public const int MaxConcurrency = 32;
-    private const int HostsPerBatch = 32;
 
     public async Task<ConsoleDiscoveryResult?> DiscoverAsync(
         int port = DefaultPort,
@@ -22,49 +21,62 @@ public sealed class ConsoleDiscoveryService
         CancellationToken ct = default)
     {
         var candidates = BuildCandidates();
+        if (candidates.Count == 0)
+            return null;
+
         var sw = Stopwatch.StartNew();
         using var http = CreateProbeClient();
         using var searchCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        using var gate = new SemaphoreSlim(MaxConcurrency, MaxConcurrency);
         var checkedCount = 0;
 
-        for (var offset = 0; offset < candidates.Count; offset += HostsPerBatch)
+        var tasks = candidates
+            .Select(ip => ProbeOneAsync(
+                http,
+                gate,
+                ip,
+                port,
+                progress,
+                log,
+                candidates.Count,
+                () => Interlocked.Increment(ref checkedCount),
+                searchCts.Token))
+            .ToList();
+
+        try
         {
-            searchCts.Token.ThrowIfCancellationRequested();
-            var batch = candidates.Skip(offset).Take(HostsPerBatch).ToArray();
-            var tasks = batch.Select(ip => ProbeOneAsync(http, ip, port, progress, log, candidates.Count, () => Interlocked.Increment(ref checkedCount), searchCts.Token)).ToList();
-
-            var winner = await WaitForFirstMatchAsync(tasks, searchCts.Token);
-            if (winner is not null)
+            while (tasks.Count > 0)
             {
-                searchCts.Cancel();
-                try { await Task.WhenAll(tasks); } catch (OperationCanceledException) { }
-                sw.Stop();
-                return new ConsoleDiscoveryResult(winner, port, sw.Elapsed);
-            }
+                ct.ThrowIfCancellationRequested();
+                var completed = await Task.WhenAny(tasks);
+                tasks.Remove(completed);
 
-            // All candidates in this batch have completed; continue with the next batch.
-            await Task.WhenAll(tasks);
+                var result = await completed;
+                if (!result.Found)
+                    continue;
+
+                searchCts.Cancel();
+                try { await Task.WhenAll(tasks); }
+                catch (OperationCanceledException) { }
+
+                sw.Stop();
+                return new ConsoleDiscoveryResult(result.Ip, port, sw.Elapsed);
+            }
+        }
+        finally
+        {
+            searchCts.Cancel();
+            try { await Task.WhenAll(tasks); }
+            catch (OperationCanceledException) { }
         }
 
         sw.Stop();
         return null;
     }
 
-    private static async Task<string?> WaitForFirstMatchAsync(List<Task<(string Ip, bool Found)>> tasks, CancellationToken ct)
-    {
-        while (tasks.Count > 0)
-        {
-            ct.ThrowIfCancellationRequested();
-            var completed = await Task.WhenAny(tasks);
-            tasks.Remove(completed);
-            var result = await completed;
-            if (result.Found) return result.Ip;
-        }
-        return null;
-    }
-
     private static async Task<(string Ip, bool Found)> ProbeOneAsync(
         HttpClient http,
+        SemaphoreSlim gate,
         string ip,
         int port,
         IProgress<(string Ip, int Checked, int Total)>? progress,
@@ -74,17 +86,38 @@ public sealed class ConsoleDiscoveryService
         CancellationToken ct)
     {
         var found = false;
+
         try
         {
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            linked.CancelAfter(ProbeTimeout);
-            using var response = await http.GetAsync($"http://{ip}:{port}/api/status", HttpCompletionOption.ResponseHeadersRead, linked.Token);
-            found = response.IsSuccessStatusCode;
-            return (ip, found);
+            await gate.WaitAsync(ct);
+            try
+            {
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                linked.CancelAfter(ProbeTimeout);
+                using var response = await http.GetAsync(
+                    $"http://{ip}:{port}/api/status",
+                    HttpCompletionOption.ResponseHeadersRead,
+                    linked.Token);
+                found = response.IsSuccessStatusCode;
+                return (ip, found);
+            }
+            finally
+            {
+                gate.Release();
+            }
         }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return (ip, false); }
-        catch (HttpRequestException) { return (ip, false); }
-        catch (SocketException) { return (ip, false); }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return (ip, false);
+        }
+        catch (HttpRequestException)
+        {
+            return (ip, false);
+        }
+        catch (SocketException)
+        {
+            return (ip, false);
+        }
         finally
         {
             var done = incrementChecked();
@@ -98,7 +131,7 @@ public sealed class ConsoleDiscoveryService
     {
         var handler = new SocketsHttpHandler
         {
-            ConnectTimeout = ProbeTimeout,
+            ConnectTimeout = TimeSpan.FromMilliseconds(100),
             MaxConnectionsPerServer = MaxConcurrency,
             PooledConnectionLifetime = TimeSpan.FromSeconds(30),
             AutomaticDecompression = DecompressionMethods.None
@@ -111,18 +144,45 @@ public sealed class ConsoleDiscoveryService
 
     private static List<string> BuildCandidates()
     {
+        var network = GetActiveIpv4Network();
+        if (network is null)
+            return [];
+
         var result = new List<string>(254);
-        var networkPrefix = GetActiveIPv4NetworkPrefix();
-        if (networkPrefix is null)
-            return result;
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var prefix = $"{network.Value.Network[0]}.{network.Value.Network[1]}.{network.Value.Host[2]}";
+
+        void Add(byte[] address)
+        {
+            var ip = $"{address[0]}.{address[1]}.{address[2]}.{address[3]}";
+            if (address[3] is 0 or 255)
+                return;
+            if (seen.Add(ip))
+                result.Add(ip);
+        }
+
+        // Prioritize the local host and default gateway so common network
+        // configurations are checked immediately, without sacrificing coverage.
+        Add(network.Value.Host);
+        foreach (var gateway in network.Value.Gateways)
+            Add(gateway);
 
         for (var host = 1; host <= 254; host++)
-            result.Add($"{networkPrefix}.{host}");
+        {
+            var address = new[]
+            {
+                network.Value.Network[0],
+                network.Value.Network[1],
+                network.Value.Host[2],
+                (byte)host
+            };
+            Add(address);
+        }
 
         return result;
     }
 
-    private static string? GetActiveIPv4NetworkPrefix()
+    private static (byte[] Network, byte[] Host, List<byte[]> Gateways)? GetActiveIpv4Network()
     {
         foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
         {
@@ -132,7 +192,8 @@ public sealed class ConsoleDiscoveryService
 
             try
             {
-                foreach (var ua in ni.GetIPProperties().UnicastAddresses)
+                var properties = ni.GetIPProperties();
+                foreach (var ua in properties.UnicastAddresses)
                 {
                     if (ua.Address.AddressFamily != AddressFamily.InterNetwork ||
                         ua.IPv4Mask is null)
@@ -144,13 +205,12 @@ public sealed class ConsoleDiscoveryService
                     for (var i = 0; i < 4; i++)
                         network[i] = (byte)(address[i] & mask[i]);
 
-                    // The discovery scope is one /24. For a real /24 (the normal
-                    // LAN case), the interface mask determines the exact network.
-                    // For larger/smaller masks, keep the /24 containing the active IP.
-                    var prefixBits = CountPrefixBits(mask);
-                    var subnet = prefixBits == 24 ? network : address;
+                    var gateways = properties.GatewayAddresses
+                        .Where(g => g.Address.AddressFamily == AddressFamily.InterNetwork)
+                        .Select(g => g.Address.GetAddressBytes())
+                        .ToList();
 
-                    return $"{subnet[0]}.{subnet[1]}.{subnet[2]}";
+                    return (network, address, gateways);
                 }
             }
             catch
@@ -160,23 +220,5 @@ public sealed class ConsoleDiscoveryService
         }
 
         return null;
-    }
-
-    private static int CountPrefixBits(byte[] mask)
-    {
-        var bits = 0;
-        foreach (var value in mask)
-        {
-            var current = value;
-            while (current != 0)
-            {
-                bits += current >> 7;
-                current <<= 1;
-            }
-
-            if (value != byte.MaxValue)
-                break;
-        }
-        return bits;
     }
 }
