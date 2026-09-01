@@ -111,39 +111,53 @@ public sealed class ConsoleDiscoveryService
 
     private static List<string> BuildCandidates()
     {
-        var result = new List<string>(65_024);
-        var preferredPrefix = GetLocal192Prefix();
-        if (preferredPrefix is not null)
-        {
-            for (var host = 1; host <= 254; host++)
-                result.Add($"192.168.{preferredPrefix}.{host}");
-        }
+        var result = new List<string>(254);
+        var networkPrefix = GetActiveIPv4NetworkPrefix();
+        if (networkPrefix is null)
+            return result;
 
-        for (var third = 0; third <= 255; third++)
-        {
-            if (preferredPrefix == third) continue;
-            for (var host = 1; host <= 254; host++)
-                result.Add($"192.168.{third}.{host}");
-        }
+        for (var host = 1; host <= 254; host++)
+            result.Add($"{networkPrefix}.{host}");
+
         return result;
     }
 
-    private static int? GetLocal192Prefix()
+    private static string? GetActiveIPv4NetworkPrefix()
     {
         foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
         {
-            if (ni.OperationalStatus != OperationalStatus.Up || ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+            if (ni.OperationalStatus != OperationalStatus.Up ||
+                ni.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                continue;
+
             try
             {
                 foreach (var ua in ni.GetIPProperties().UnicastAddresses)
                 {
-                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
-                    var bytes = ua.Address.GetAddressBytes();
-                    if (bytes[0] == 192 && bytes[1] == 168) return bytes[2];
+                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork ||
+                        ua.IPv4Mask is null)
+                        continue;
+
+                    var address = ua.Address.GetAddressBytes();
+                    var mask = ua.IPv4Mask.GetAddressBytes();
+
+                    // Use the real interface mask to identify the active local network.
+                    var network = new byte[4];
+                    for (var i = 0; i < 4; i++)
+                        network[i] = (byte)(address[i] & mask[i]);
+
+                    // Discovery intentionally probes the /24 containing the active IP.
+                    // This keeps discovery bounded while working with 192.168.x.x,
+                    // 10.x.x.x and 172.16-31.x.x networks alike.
+                    return $"{address[0]}.{address[1]}.{address[2]}";
                 }
             }
-            catch { }
+            catch
+            {
+                // Ignore interfaces that cannot be queried and try the next active one.
+            }
         }
+
         return null;
     }
 }
