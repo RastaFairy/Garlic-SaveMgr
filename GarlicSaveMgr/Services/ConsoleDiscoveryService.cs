@@ -1,19 +1,26 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
-using System.Diagnostics;
 
 namespace GarlicSaveMgr.Services;
 
 public sealed record ConsoleDiscoveryResult(string Ip, int Port, TimeSpan Elapsed);
 
+/// <summary>
+/// Simple deterministic discovery for the 192.168.0.0/16 space.
+/// Each batch contains up to 255 addresses. Every address is always pinged first
+/// by the native Windows ping.exe process. Ping output is persisted under the
+/// portable application directory so the successful replies can be analysed after
+/// the batch finishes. Only ping-positive hosts are then probed on Garlic ports.
+/// </summary>
 public sealed class ConsoleDiscoveryService
 {
     public const int DefaultPort = 8082;
-    public static readonly TimeSpan ProbeTimeout = TimeSpan.FromMilliseconds(10);
-    public const int MaxConcurrency = 32;
-    private const int HostsPerBatch = 32;
+    public const int ElfLdrPort = 9021;
+    public static readonly TimeSpan PingTimeout = TimeSpan.FromMilliseconds(100);
+    public static readonly TimeSpan HttpProbeTimeout = TimeSpan.FromMilliseconds(500);
+    public const int BatchSize = 255;
+    public const int MaxAddresses = 1 << 16; // 192.168.0.0 .. 192.168.255.255
 
     public async Task<ConsoleDiscoveryResult?> DiscoverAsync(
         int port = DefaultPort,
@@ -21,129 +28,224 @@ public sealed class ConsoleDiscoveryService
         Action<string>? log = null,
         CancellationToken ct = default)
     {
-        var candidates = BuildCandidates();
         var sw = Stopwatch.StartNew();
-        using var http = CreateProbeClient();
-        using var searchCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var checkedCount = 0;
+        var tempRoot = Path.Combine(
+            GarlicSaveMgr.Infrastructure.AppPaths.RootDirectory,
+            "discovery_temp");
+        Directory.CreateDirectory(tempRoot);
 
-        for (var offset = 0; offset < candidates.Count; offset += HostsPerBatch)
-        {
-            searchCts.Token.ThrowIfCancellationRequested();
-            var batch = candidates.Skip(offset).Take(HostsPerBatch).ToArray();
-            var tasks = batch.Select(ip => ProbeOneAsync(http, ip, port, progress, log, candidates.Count, () => Interlocked.Increment(ref checkedCount), searchCts.Token)).ToList();
-
-            var winner = await WaitForFirstMatchAsync(tasks, searchCts.Token);
-            if (winner is not null)
-            {
-                searchCts.Cancel();
-                try { await Task.WhenAll(tasks); } catch (OperationCanceledException) { }
-                sw.Stop();
-                return new ConsoleDiscoveryResult(winner, port, sw.Elapsed);
-            }
-
-            // All candidates in this batch have completed; continue with the next batch.
-            await Task.WhenAll(tasks);
-        }
-
-        sw.Stop();
-        return null;
-    }
-
-    private static async Task<string?> WaitForFirstMatchAsync(List<Task<(string Ip, bool Found)>> tasks, CancellationToken ct)
-    {
-        while (tasks.Count > 0)
-        {
-            ct.ThrowIfCancellationRequested();
-            var completed = await Task.WhenAny(tasks);
-            tasks.Remove(completed);
-            var result = await completed;
-            if (result.Found) return result.Ip;
-        }
-        return null;
-    }
-
-    private static async Task<(string Ip, bool Found)> ProbeOneAsync(
-        HttpClient http,
-        string ip,
-        int port,
-        IProgress<(string Ip, int Checked, int Total)>? progress,
-        Action<string>? log,
-        int total,
-        Func<int> incrementChecked,
-        CancellationToken ct)
-    {
-        var found = false;
         try
         {
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            linked.CancelAfter(ProbeTimeout);
-            using var response = await http.GetAsync($"http://{ip}:{port}/api/status", HttpCompletionOption.ResponseHeadersRead, linked.Token);
-            found = response.IsSuccessStatusCode;
-            return (ip, found);
+            for (var batchStart = 0; batchStart < MaxAddresses; batchStart += BatchSize)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var count = Math.Min(BatchSize, MaxAddresses - batchStart);
+                var batchDirectory = Path.Combine(tempRoot, $"batch_{batchStart:D5}");
+                Directory.CreateDirectory(batchDirectory);
+
+                log?.Invoke($"Ping batch: {Format192168Address(batchStart)} + {count - 1} direcciones.");
+
+                var tasks = new List<Task<PingProbeResult>>(count);
+                for (var i = 0; i < count; i++)
+                {
+                    var offset = batchStart + i;
+                    tasks.Add(RunNativePingAsync(offset, batchDirectory, ct));
+                }
+
+                var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+                var pingOk = results.Where(r => r.Success).OrderBy(r => r.Offset).ToList();
+
+                foreach (var result in results)
+                {
+                    var checkedCount = result.Offset + 1;
+                    progress?.Report((result.Ip, checkedCount, MaxAddresses));
+                }
+
+                log?.Invoke($"Ping batch completado: {pingOk.Count}/{count} respondieron.");
+
+                foreach (var result in pingOk)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    log?.Invoke($"Ping OK: {result.Ip}");
+
+                    var garlicPort = await FindGarlicPortAsync(result.Ip, port, ct).ConfigureAwait(false);
+                    if (garlicPort is not null)
+                    {
+                        sw.Stop();
+                        log?.Invoke($"Consola encontrada en {result.Ip}:{garlicPort.Value}");
+                        return new ConsoleDiscoveryResult(result.Ip, garlicPort.Value, sw.Elapsed);
+                    }
+                }
+
+                // Keep the portable temp tree bounded while retaining the latest batch
+                // for diagnostics. Older batch directories are safe to remove after use.
+                CleanupOldBatchDirectories(tempRoot, keepLatest: 4);
+            }
+
+            sw.Stop();
+            return null;
         }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return (ip, false); }
-        catch (HttpRequestException) { return (ip, false); }
-        catch (SocketException) { return (ip, false); }
         finally
         {
-            var done = incrementChecked();
-            progress?.Report((ip, done, total));
-            // Deliberately do not log every address: per-IP file I/O dominated the old scan timing.
-            if (found) log?.Invoke($"Consola encontrada en {ip}:{port}");
+            CleanupOldBatchDirectories(tempRoot, keepLatest: 2);
         }
     }
 
-    private static HttpClient CreateProbeClient()
+    private static async Task<PingProbeResult> RunNativePingAsync(int offset, string batchDirectory, CancellationToken ct)
     {
-        var handler = new SocketsHttpHandler
+        var ip = Format192168Address(offset);
+        var safeIp = ip.Replace('.', '_');
+        var outputPath = Path.Combine(batchDirectory, $"{safeIp}.txt");
+
+        var psi = new ProcessStartInfo
         {
-            ConnectTimeout = ProbeTimeout,
-            MaxConnectionsPerServer = MaxConcurrency,
-            PooledConnectionLifetime = TimeSpan.FromSeconds(30),
-            AutomaticDecompression = DecompressionMethods.None
+            FileName = Path.Combine(Environment.SystemDirectory, "ping.exe"),
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            WorkingDirectory = GarlicSaveMgr.Infrastructure.AppPaths.RootDirectory,
+            Arguments = $"-n 1 -w {(int)PingTimeout.TotalMilliseconds} {ip}"
         };
-        return new HttpClient(handler)
+
+        using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+        try
         {
-            Timeout = ProbeTimeout
-        };
+            if (!process.Start())
+                return new PingProbeResult(offset, ip, false);
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
+            var stderrTask = process.StandardError.ReadToEndAsync(ct);
+            await process.WaitForExitAsync(ct).ConfigureAwait(false);
+
+            var stdout = await stdoutTask.ConfigureAwait(false);
+            var stderr = await stderrTask.ConfigureAwait(false);
+            var output = string.Concat(stdout, stderr);
+            await File.WriteAllTextAsync(outputPath, output, ct).ConfigureAwait(false);
+
+            // ping.exe exit code 0 means at least one echo reply was received.
+            // TTL is kept as a second guard so a redirected/local diagnostic line is not
+            // accidentally treated as a successful remote host.
+            var success = process.ExitCode == 0 &&
+                          output.Contains("TTL=", StringComparison.OrdinalIgnoreCase);
+            return new PingProbeResult(offset, ip, success);
+        }
+        catch (OperationCanceledException)
+        {
+            TryKill(process);
+            throw;
+        }
+        catch
+        {
+            return new PingProbeResult(offset, ip, false);
+        }
     }
 
-    private static List<string> BuildCandidates()
+    private static void TryKill(Process process)
     {
-        var result = new List<string>(65_024);
-        var preferredPrefix = GetLocal192Prefix();
-        if (preferredPrefix is not null)
+        try
         {
-            for (var host = 1; host <= 254; host++)
-                result.Add($"192.168.{preferredPrefix}.{host}");
+            if (!process.HasExited) process.Kill(true);
         }
-
-        for (var third = 0; third <= 255; third++)
+        catch
         {
-            if (preferredPrefix == third) continue;
-            for (var host = 1; host <= 254; host++)
-                result.Add($"192.168.{third}.{host}");
+            // Best effort only.
         }
-        return result;
     }
 
-    private static int? GetLocal192Prefix()
+    private static async Task<int?> FindGarlicPortAsync(string ip, int preferredPort, CancellationToken ct)
     {
-        foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
-        {
-            if (ni.OperationalStatus != OperationalStatus.Up || ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
-            try
-            {
-                foreach (var ua in ni.GetIPProperties().UnicastAddresses)
-                {
-                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
-                    var bytes = ua.Address.GetAddressBytes();
-                    if (bytes[0] == 192 && bytes[1] == 168) return bytes[2];
-                }
-            }
-            catch { }
-        }
+        if (await ProbeGarlicAsync(ip, preferredPort, ct).ConfigureAwait(false))
+            return preferredPort;
+
+        // 9021 belongs to elfldr, not to the Garlic HTTP API. It is therefore only
+        // evidence that this host is the console; the caller must keep using 8082
+        // after the payload is sent and Garlic starts.
+        if (preferredPort != ElfLdrPort && await ProbeTcpPortAsync(ip, ElfLdrPort, ct).ConfigureAwait(false))
+            return preferredPort;
+
         return null;
     }
+
+    private static async Task<bool> ProbeGarlicAsync(string ip, int port, CancellationToken ct)
+    {
+        using var handler = new SocketsHttpHandler
+        {
+            ConnectTimeout = HttpProbeTimeout,
+            PooledConnectionLifetime = TimeSpan.FromSeconds(10)
+        };
+        using var http = new HttpClient(handler) { Timeout = HttpProbeTimeout };
+
+        try
+        {
+            using var response = await http.GetAsync(
+                $"http://{ip}:{port}/api/status",
+                HttpCompletionOption.ResponseHeadersRead,
+                ct).ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+                return false;
+
+            var mediaType = response.Content.Headers.ContentType?.MediaType;
+            if (!string.Equals(mediaType, "application/json", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(mediaType, "text/json", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return true;
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static async Task<bool> ProbeTcpPortAsync(string ip, int port, CancellationToken ct)
+    {
+        using var tcp = new System.Net.Sockets.TcpClient();
+        try
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(HttpProbeTimeout);
+            await tcp.ConnectAsync(ip, port, timeoutCts.Token).ConfigureAwait(false);
+            return tcp.Connected;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string Format192168Address(int offset)
+    {
+        var third = (offset >> 8) & 0xFF;
+        var fourth = offset & 0xFF;
+        return $"192.168.{third}.{fourth}";
+    }
+
+    private static void CleanupOldBatchDirectories(string root, int keepLatest)
+    {
+        try
+        {
+            var directories = Directory.GetDirectories(root, "batch_*", SearchOption.TopDirectoryOnly)
+                .OrderByDescending(Path.GetFileName)
+                .Skip(keepLatest)
+                .ToList();
+
+            foreach (var directory in directories)
+            {
+                try { Directory.Delete(directory, recursive: true); } catch { }
+            }
+        }
+        catch
+        {
+            // Diagnostics directory cleanup must never break discovery.
+        }
+    }
+
+    private sealed record PingProbeResult(int Offset, string Ip, bool Success);
 }

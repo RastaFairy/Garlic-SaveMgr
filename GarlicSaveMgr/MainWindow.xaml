@@ -2,7 +2,7 @@
         Icon="garlicon.ico"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Garlic SaveMgr v6.8"
+        Title="Garlic SaveMgr v6.8.1"
         Width="1100"
         Height="720"
         MinWidth="760"

@@ -2,7 +2,7 @@
 
 ```text
 GarlicSaveMgr/
-  Código fuente C#/.NET 8 + WPF de la versión pública v6.8.
+  Código fuente C#/.NET 8 + WPF de la versión pública v6.8.1.
 legacy/python-6.6.1/
   Snapshot del cliente Python que sirvió como referencia funcional.
 .github/workflows/

@@ -7,10 +7,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <PlatformTarget>x64</PlatformTarget>
     <AssemblyName>Garlic_SaveMgr</AssemblyName>
-    <Version>6.8.0</Version>
-    <AssemblyVersion>6.8.0.0</AssemblyVersion>
-    <FileVersion>6.8.0.0</FileVersion>
-    <InformationalVersion>6.8</InformationalVersion>
+    <Version>6.8.1</Version>
+    <AssemblyVersion>6.8.1.0</AssemblyVersion>
+    <FileVersion>6.8.1.0</FileVersion>
+    <InformationalVersion>6.8.1</InformationalVersion>
     <RootNamespace>GarlicSaveMgr</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>garlicon.ico</ApplicationIcon>

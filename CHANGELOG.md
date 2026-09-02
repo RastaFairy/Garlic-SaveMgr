@@ -1,5 +1,48 @@
 # Garlic SaveMgr — Changelog
 
+## v6.8.1 — 2026-09-02
+
+### Descubrimiento de consola
+- Consolidación del descubrimiento simple y determinista mediante `ping.exe` nativo de Windows.
+- El espacio de búsqueda se recorre en orden desde `192.168.0.0` hasta `192.168.255.255`.
+- Las direcciones se agrupan en lotes de hasta 255 procesos de ping simultáneos para evitar el coste de esperar una IP cada vez.
+- Cada ping se ejecuta como proceso oculto y su salida se conserva temporalmente bajo `discovery_temp/`.
+- Solo las direcciones con respuesta ICMP positiva pasan a la validación de Garlic.
+- `8082` es el puerto primario de Garlic; `9021` se utiliza únicamente como puerto de `elfldr` cuando Garlic aún no está activo.
+- Se conserva el fallback de IP manual cuando la autodetección no encuentra una consola.
+- No se consulta el router, su panel de administración, sus credenciales ni su tabla de clientes.
+- Se eliminó la dependencia de los experimentos ARP/SSDP/mDNS de la rama de pruebas de red.
+
+### Validación del flujo
+- Prueba real en Windows con descubrimiento satisfactorio en `192.168.1.211`.
+- Confirmación de Garlic en `8082`.
+- Envío del payload `garlic-savemgr v1.13` mediante `192.168.1.211:9021`.
+- Confirmación del arranque de Garlic y escaneo posterior de 41 títulos.
+
+### Identidad de versión
+- `AppInfo.Version`: `6.8.1`.
+- `AssemblyVersion`: `6.8.1.0`.
+- `FileVersion`: `6.8.1.0`.
+- `InformationalVersion`: `6.8.1`.
+- Artifact de GitHub Actions: `Garlic_SaveMgr-v6.8.1-win-x64`.
+
+
+## 6.8 – descubrimiento Ping por lotes
+
+- Autodetección simplificada mediante `ping.exe` nativo de Windows.
+- Hasta 255 procesos `ping.exe` se ejecutan en paralelo por lote.
+- Cada resultado se guarda temporalmente bajo `discovery_temp` dentro de la carpeta portátil de la aplicación.
+- Solo los hosts con ping positivo pasan a la comprobación de `8082`; `9021` se comprueba como puerto de `elfldr`.
+- Si no se encuentra una consola, se mantiene la introducción manual de IP.
+- Sin dependencia del router, ARP, SSDP o mDNS.
+
+### v6.8 — descubrimiento simple por ping
+- La autodetección recorre secuencialmente `192.168.0.0` → `192.168.255.255`, incrementando la dirección en `+1`.
+- Cada dirección se somete siempre primero a un ping ICMP breve (timeout objetivo: 2 ms); solo los hosts que responden se validan contra Garlic en `8082`.
+- Sin ARP, SSDP, mDNS ni dependencia del router.
+- Se conserva la introducción manual de IP como fallback.
+# Garlic SaveMgr — Changelog
+
 ## v6.8 — 2026-09-01
 
 ### Public release
@@ -176,3 +219,7 @@ Payload Garlic: v1.13
 ```
 
 El número del payload no sustituye al número de versión de Garlic SaveMgr.
+
+### Descubrimiento de consola (v6.8)
+
+La autodetección utiliza un recorrido determinista de `192.168.0.0` a `192.168.255.255`, avanzando una dirección cada vez. Cada dirección recibe una sonda ICMP con timeout máximo de 10 ms; solo después de un ping satisfactorio se confirma Garlic mediante `GET /api/status`. Si la autodetección no resuelve la consola, el usuario puede introducir manualmente la IP y el puerto en el perfil.

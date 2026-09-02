@@ -3,7 +3,7 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $project = Join-Path $root 'GarlicSaveMgr\GarlicSaveMgr.csproj'
 $publish = Join-Path $root 'publish'
 
-Write-Host '== Garlic SaveMgr C# v6.8 =='
+Write-Host '== Garlic SaveMgr C# v6.8.1 =='
 Write-Host 'Limpiando...'
 if (Test-Path $publish) { Remove-Item $publish -Recurse -Force }
 

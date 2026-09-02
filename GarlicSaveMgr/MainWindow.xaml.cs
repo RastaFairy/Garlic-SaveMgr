@@ -357,6 +357,16 @@ public partial class MainWindow : Window
                 GarlicStatusLabel.Text = "No detectada";
                 StatusLabel.Text = "No se encontró Garlic en 192.168.x.x.";
                 NotifyCompletion("Detección finalizada", "No se encontró una consola con Garlic activo.");
+
+                var manual = new SettingsWindow(_config, this);
+                if (manual.ShowDialog() == true && IsValidConsoleAddress(_config.Ip, _config.Port))
+                {
+                    SettingsService.Save(_config);
+                    ProfileService.Upsert(_config);
+                    LoadProfiles();
+                    UpdateConsoleLabel();
+                    await EnsureGarlicOrLaunchPayloadAsync();
+                }
                 return;
             }
 
