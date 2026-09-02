@@ -4,7 +4,7 @@ This note records the functional Windows validation used to consolidate the v6.8
 
 ## Observed sequence
 
-- Application started as `Garlic SaveMgr v6.8` during the validation build prior to the version bump.
+- The validation started from the pre-release build that became v6.8.1; the application reported v6.8 before the final version bump.
 - Ping batches were executed using native Windows `ping.exe`.
 - The second batch produced 13 ICMP-positive hosts.
 - Garlic was located at `192.168.1.211:8082`.

@@ -1,68 +1,57 @@
-# Depuración y cambios – Garlic SaveMgr C#
+# Depuración y mantenimiento — Garlic SaveMgr v6.8.1
 
-## Cambios de esta revisión
+Este documento reúne notas de mantenimiento y decisiones técnicas que afectan al cliente C#/.NET 8 + WPF. No es la documentación de usuario; para el flujo actual consulta `README.md` y `docs/`.
 
-- Icono `garlicon.ico` integrado como recurso WPF y `ApplicationIcon` del ejecutable.
-- Icono configurado también en la ventana principal.
-- Estados de filas corregidos mediante `INotifyPropertyChanged` y `ElementStyle` para que los colores se apliquen a los `TextBlock` generados por `DataGridTextColumn`.
-- Detección automática de consola añadida.
-  - Prioriza la subred `/24` 192.168.x.0 donde está conectado el PC.
-  - Si no encuentra Garlic, continúa por el resto de `192.168.0.0/16`.
-  - Prueba el puerto Garlic configurado (8082 por defecto).
-  - Deja como máximo 10 ms entre candidatos.
-  - Se puede cancelar.
-  - Al encontrar Garlic guarda la IP y realiza el escaneo de títulos automáticamente.
-- El arranque intenta validar la IP guardada; si no responde, inicia detección automática.
-- Se conserva la información de compatibilidad/hash del payload Garlic v1.13 para validación local.
+## Estado de la implementación actual
 
-## Compilación
+- Cliente de escritorio: C# / .NET 8 / WPF.
+- Plataforma de publicación: Windows x64.
+- Publicación: self-contained, single-file.
+- Persistencia: portable, bajo la carpeta del ejecutable.
+- Garlic HTTP: puerto `8082`.
+- `elfldr`: puerto `9021`.
 
-El SDK .NET 8.0.424 está instalado en la VM, pero el SDK Linux no contiene `Microsoft.WindowsDesktop.App.Ref`; el contenedor tampoco tiene acceso a NuGet. Por ello la compilación WPF completa queda pendiente de restaurar el paquete WindowsDesktop desde una máquina con acceso a NuGet.
+## Descubrimiento de consola v6.8.1
 
-La primera llamada a `dotnet build GarlicSaveMgr.sln` además recibió una configuración externa inválida (`Debug|linux/amd64`). La solución solo declara `Any CPU`; el proyecto debe publicarse como `win-x64` mediante `build.ps1`.
+El método actualmente publicado es deliberadamente determinista y no depende del router:
 
-## Payload
+1. Se recorre `192.168.0.0` → `192.168.255.255`.
+2. Las direcciones se procesan en lotes de hasta 255 pings simultáneos.
+3. Cada dirección utiliza el `ping.exe` nativo de Windows con un timeout de 100 ms.
+4. La salida de cada proceso se guarda temporalmente bajo `discovery_temp/`.
+5. Solo los hosts con respuesta ICMP positiva pasan a la validación de Garlic.
+6. Se prueba `GET /api/status` en `8082`.
+7. Si Garlic todavía no responde, `9021` se comprueba como puerto TCP de `elfldr` y no se confunde con la API de Garlic.
 
-La versión publicada de Garlic SaveMgr se distribuye como ELF y se carga mediante un ELF loader antes de exponer el servidor HTTP en el puerto 8082. La aplicación conserva la identificación y el SHA-256 conocido del payload para comprobación, pero esta revisión **no implementa el envío automático de un payload de jailbreak a la consola**.
+Las carpetas temporales de lotes antiguos se eliminan automáticamente. El fallback manual de IP/puerto permanece disponible.
 
-El flujo seguro implementado es detectar si el servicio Garlic ya está activo y continuar automáticamente con la aplicación.
+## Arranque de Garlic
 
-## Mejoras UX incorporadas
-La interfaz mantiene exclusivamente el tema claro y ahora permite ordenar ambas tablas, filtrar por texto, ver el tamaño real de cada IMG y consultar el SHA-256 almacenado.
+Cuando Garlic no está activo, la aplicación puede preparar la caché del payload y, con autorización del usuario, enviarlo a `elfldr` en `9021`. Después del envío se vuelve a comprobar `8082` hasta que Garlic responde o se agota el tiempo de espera.
 
-Cada backup nuevo calcula automáticamente SHA-256 después de descargarse por completo y lo guarda en el sidecar JSON. Las copias seleccionadas pueden exportarse juntas como ZIP.
+El payload seleccionado por el catálogo puede cambiar con el tiempo. La aplicación separa:
 
-Se añadieron perfiles de consola persistentes. El selector superior cambia de IP/puerto/nombre sin exigir reconfiguración manual.
+- versión de Garlic realmente ejecutándose en la consola;
+- versión del payload almacenada en caché;
+- última versión anunciada por los catálogos.
 
-Al finalizar escaneos, backups, restauraciones, eliminaciones y exportaciones se emite una notificación visual/sonora.
+## Portabilidad
 
+La raíz de almacenamiento es `AppContext.BaseDirectory`. La aplicación no usa `%AppData%`, `%LocalAppData%` ni el Registro para la persistencia normal.
 
-## v6.7.4-gpt
-- Flujo de arranque revisado: no se ejecutan ni transfieren payloads.
-- Se comprueba `/api/status` tras detectar/seleccionar la consola.
-- Si Garlic no responde, se muestra un diálogo de reintento.
-- Cuando vuelve a responder, se inicia automáticamente el escaneo de títulos.
+## Validación de v6.8.1
 
-## 6.7.8-gpt
-- Problema corregido: la versión del Garlic en ejecución no podía obtenerse porque el cliente solo consultaba `/api/status`.
-- Solución: consulta ligera a `/` y extracción de versión exclusivamente dentro de `<nav>`.
-- Fallback conservado: campos de versión en `/api/status` y cabecera `Server`.
-- Validación del extractor realizada contra el HTML conocido de Garlic v1.13.
+Durante la validación funcional en Windows se confirmó:
 
-## 6.7.9 - Portabilidad y UI Simple
+- descubrimiento mediante ping en lotes;
+- consola encontrada en `192.168.1.211`;
+- Garlic operativo en `8082`;
+- envío del payload `v1.13` a `9021`;
+- arranque posterior de Garlic;
+- escaneo de 41 títulos.
 
-- UID y controles asociados se ocultan por completo en modo Simple.
-- El panel de log no conserva ancho reservado en modo Simple.
-- La raíz portable es `AppContext.BaseDirectory`.
-- Se eliminó la persistencia mediante Registro de Windows.
-- Toda la configuración y caché de la aplicación se almacena bajo la raíz portable.
+El detalle del registro histórico está en `docs/VALIDATION_v6.8.1.md`.
 
-## Build validation correction
+## Problemas históricos
 
-The v6.7.10 source package originally contained three source errors that prevented compilation:
-- `Clip="True"` on a `Border` (Clip expects Geometry); removed.
-- Four verbatim C# regex strings incorrectly escaped with `\"`; corrected to doubled quotes.
-- `MainWindow.xaml.cs` referenced `Border` without `System.Windows.Controls` and referenced missing `CoverImage` properties on `TitleRow`/`BackupRow`; restored these declarations.
-
-After correction: `dotnet build -c Release --no-restore` = 0 warnings, 0 errors.
-`dotnet publish -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --no-restore` = successful.
+Las primeras iteraciones utilizaron otras estrategias de descubrimiento y diferentes configuraciones de UI. Esas notas se conservan en `changelog-history.md`; no describen necesariamente el comportamiento del cliente actual.

@@ -1,4 +1,5 @@
-Garlic SaveMgr v6.7.5-gpt
+Garlic SaveMgr v6.8.1
 Build target: net8.0-windows / win-x64
-Build result: 0 warnings, 0 errors
 Publish: self-contained single-file PE32+ x64
+Canonical build: .\build.ps1
+Output: publish\Garlic_SaveMgr.exe

@@ -1,10 +1,10 @@
 # Release v6.8.1
 
-Garlic SaveMgr v6.8.1 consolida la rama pública C#/.NET 8 + WPF y documenta el método de descubrimiento de consola validado en Windows.
+Garlic SaveMgr v6.8.1 consolida la rama pública C#/.NET 8 + WPF y el método de descubrimiento de consola validado en Windows.
 
 ## Destacado
 
-La detección agrupa hasta 255 pings de `ping.exe` por lote, guarda temporalmente sus resultados y solo valida mediante HTTP las IPs que respondieron al ICMP. Este modelo evita bloquear el descubrimiento esperando una dirección inactiva antes de iniciar la siguiente.
+La detección agrupa hasta 255 pings de `ping.exe` por lote, guarda temporalmente sus resultados y solo valida mediante HTTP las IPs que respondieron al ICMP.
 
 ## Flujo validado
 
@@ -21,3 +21,5 @@ En la prueba de referencia la consola fue localizada en `192.168.1.211`, el payl
 ## Notas
 
 La detección no utiliza datos del router ni presupone una marca concreta de infraestructura de red. El fallback manual permanece disponible para casos excepcionales.
+
+Para el historial de validación y el método de descubrimiento consulta `docs/VALIDATION_v6.8.1.md` y `docs/NETWORK_DISCOVERY.md`.

@@ -1,0 +1,26 @@
+# .NET / Visual Studio
+**/bin/
+**/obj/
+publish/
+.vs/
+*.user
+*.suo
+*.pdb
+*.userprefs
+TestResults/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+
+# Portable application data generated at runtime
+data/
+covers/
+payload_cache/
+garlic_saves/
+discovery_temp/
+GarlicSaveMgr/data/
+GarlicSaveMgr/covers/
+GarlicSaveMgr/payload_cache/
+GarlicSaveMgr/garlic_saves/
+GarlicSaveMgr/discovery_temp/

@@ -11,6 +11,7 @@ Esta versión continúa la evolución del proyecto original de **RastaFairy** (`
 > **Proyecto base:** https://github.com/RastaFairy/Garlic-SaveMgr
 
 [![Release](https://img.shields.io/badge/release-v6.8.1-informational)](https://github.com/RastaFairy/Garlic-SaveMgr/releases)
+[![Build Windows](https://github.com/RastaFairy/Garlic-SaveMgr/actions/workflows/build-windows.yml/badge.svg)](https://github.com/RastaFairy/Garlic-SaveMgr/actions/workflows/build-windows.yml)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue)](./LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-lightgrey)](https://github.com/RastaFairy/Garlic-SaveMgr)
 
@@ -71,9 +72,9 @@ Continuar con el flujo principal
 
 La versión de Garlic en ejecución y la versión del payload disponible son valores independientes. La caché local nunca se utiliza como sustituto de la versión realmente servida por la consola.
 
-La aplicación puede cargar automáticamente el payload público cacheado mediante `elfldr` cuando la consola no tiene Garlic activo, siempre que exista un `elfldr` accesible en el puerto correspondiente y el usuario permita continuar.
+Cuando Garlic no está activo, la aplicación puede cargar el payload público disponible mediante `elfldr`. `9021` se utiliza para la carga; `8082` sigue siendo el puerto de la API de Garlic después del arranque. La transferencia requiere la autorización de continuación que muestra la interfaz.
 
-> La identificación de versiones es independiente del número de versión de esta aplicación. Por ejemplo, la aplicación puede ser `v6.8.1` mientras Garlic SaveMgr para PS5 está en `v1.13`.
+> La identificación de versiones es independiente del número de versión de esta aplicación. Por ejemplo, la aplicación puede ser `v6.8.1` mientras el payload Garlic de PS5 está en `v1.13`.
 
 ---
 
@@ -83,15 +84,7 @@ La aplicación obtiene los títulos y slots disponibles desde Garlic y permite s
 
 Las copias se conservan como imágenes `.img` junto con sus metadatos `.json`.
 
-Cada backup puede registrar:
-
-- título;
-- Title ID;
-- slot/save;
-- propietario/UID cuando está disponible;
-- fecha de creación;
-- tamaño;
-- SHA-256.
+Cada backup puede registrar título, Title ID, slot/save, propietario/UID cuando está disponible, fecha, tamaño y SHA-256.
 
 El nombre de los backups incorpora resolución de milisegundos para reducir colisiones entre operaciones muy próximas.
 
@@ -101,15 +94,7 @@ El nombre de los backups incorpora resolución de milisegundos para reducir coli
 
 La restauración valida primero el perfil asociado al backup antes de modificar la consola.
 
-En modo Simple, las copias están agrupadas por título para evitar mostrar múltiples tarjetas de una misma partida:
-
-```text
-[ CARÁTULA ]
-Astro's Playroom
-2 copias
-```
-
-En modo Detallado se conserva la información individual de cada backup/slot.
+En modo Simple, las copias están agrupadas por título para evitar mostrar múltiples tarjetas de una misma partida. En modo Detallado se conserva la información individual de cada backup/slot.
 
 Las operaciones destructivas requieren confirmación explícita y las restauraciones por lote se detienen si no se supera la validación necesaria.
 
@@ -127,11 +112,7 @@ Los backups descargados pueden verificarse mediante SHA-256. El hash se guarda j
 
 ### Eliminación
 
-Se soporta:
-
-- eliminación de títulos/saves de la consola;
-- eliminación de copias locales;
-- confirmación antes de operaciones destructivas.
+Se soporta la eliminación de títulos/saves de la consola y de copias locales, siempre con confirmación antes de operaciones destructivas.
 
 ---
 
@@ -149,27 +130,11 @@ Las carátulas se descargan en segundo plano y se reutilizan desde la carpeta lo
 
 ### Modo Simple
 
-Pensado para el uso cotidiano:
-
-- carátula;
-- título;
-- selección visual;
-- acciones principales.
-
-No muestra UID ni detalles internos innecesarios.
+Pensado para el uso cotidiano: carátula, título, selección visual y acciones principales. No muestra UID ni detalles internos innecesarios.
 
 ### Modo Detallado
 
-Pensado para diagnóstico y usuarios avanzados:
-
-- Title ID;
-- UID;
-- slots/saves;
-- tamaño;
-- estado;
-- actividad en tiempo real;
-- información del payload;
-- SHA-256 y metadatos disponibles.
+Pensado para diagnóstico y usuarios avanzados: Title ID, UID, slots/saves, tamaño, estado, actividad en tiempo real, información del payload, SHA-256 y metadatos disponibles.
 
 El selector Simple / Detallada se guarda en la configuración de la aplicación y no depende del perfil de consola.
 
@@ -178,8 +143,6 @@ El selector Simple / Detallada se guarda en la configuración de la aplicación 
 ## Portabilidad
 
 Garlic SaveMgr es una aplicación **portable**. La carpeta que contiene el ejecutable es la raíz de almacenamiento de la aplicación.
-
-Ejemplo:
 
 ```text
 Garlic SaveMgr/
@@ -208,6 +171,7 @@ Requisitos:
 
 - Windows x64.
 - .NET 8 SDK.
+- PowerShell.
 
 Desde PowerShell:
 
@@ -227,28 +191,24 @@ La publicación se genera en:
 publish\Garlic_SaveMgr.exe
 ```
 
-El proyecto utiliza WPF y está preparado para `win-x64`.
+El proyecto utiliza WPF y está preparado para `win-x64`. GitHub Actions valida automáticamente la build de Windows mediante `.github/workflows/build-windows.yml`.
 
 ---
 
-## v6.8.1 — cambios de mantenimiento y descubrimiento
+## v6.8.1 — descubrimiento de consola
 
-La versión v6.8.1 consolida el método de descubrimiento validado durante las pruebas en Windows:
+La versión pública v6.8.1 consolida el método validado durante las pruebas en Windows:
 
 - Lotes de hasta 255 procesos `ping.exe` simultáneos.
 - Salida de cada proceso almacenada temporalmente bajo `discovery_temp/` para diagnóstico.
 - Evaluación conjunta del lote antes de pasar a la validación de Garlic.
 - Validación de hosts positivos mediante `GET /api/status` en `8082`.
 - Comprobación de `9021` únicamente como puerto de `elfldr` cuando `8082` todavía no está activo.
-- Fallback de IP manual mantenido para redes o configuraciones en las que la autodetección no resuelva la consola.
+- Fallback de IP manual mantenido.
 - Sin dependencia de la interfaz web, credenciales o API del router.
-- Se mantiene el almacenamiento portable junto al ejecutable.
+- Limpieza automática de lotes de diagnóstico antiguos.
 
-La comprobación de versión del payload y el uso de `garlic-savemgr v1.13` siguen siendo independientes de la versión del cliente para PC.
-
-### Validación de referencia
-
-Durante la validación de v6.8.1 se confirmó un flujo completo en Windows: descubrimiento mediante ping, localización de una consola en `192.168.1.211`, validación de Garlic en `8082`, carga del payload mediante `9021/elfldr`, arranque de Garlic y escaneo correcto de 41 títulos. Esta referencia procede de un log de ejecución de prueba del proyecto.
+Durante la validación se confirmó un flujo completo en Windows: descubrimiento mediante ping, localización de una consola en `192.168.1.211`, validación de Garlic en `8082`, carga del payload mediante `9021/elfldr`, arranque de Garlic y escaneo correcto de 41 títulos.
 
 ---
 
@@ -270,9 +230,15 @@ Garlic SaveMgr es el cliente de escritorio. El servicio que corre en la PS5 proc
 
 https://github.com/earthonion/garlic-savemgr
 
-La aplicación reconoce dinámicamente la versión que está sirviendo la consola y consulta catálogos externos para conocer la última versión disponible.
+La aplicación reconoce dinámicamente la versión que está sirviendo la consola y consulta catálogos externos para conocer la versión disponible.
 
-En el momento de preparar v6.8.1, los catálogos PLDMGR consultados enumeran `garlic-savemgr v1.13` con el SHA-256 publicado por el propio catálogo.
+Durante la preparación de v6.8.1, los catálogos PLDMGR consultados enumeraron `garlic-savemgr v1.13`. El SHA-256 de referencia validado para ese binario es:
+
+```text
+b6d366f4101fa2fcc14a353d083ef7e45e1cc86ef457bb20502bd8680dce4d73
+```
+
+La aplicación sigue consultando los catálogos dinámicamente para versiones posteriores.
 
 ---
 
@@ -280,7 +246,7 @@ En el momento de preparar v6.8.1, los catálogos PLDMGR consultados enumeran `ga
 
 El proyecto original Garlic SaveMgr de RastaFairy está publicado bajo GPL-3.0 y este repositorio conserva la licencia y los avisos correspondientes.
 
-Consulta `CREDITS.md` y `LICENSE-NOTICE.md` para conocer el origen, las dependencias, el port C# y las atribuciones adicionales.
+Consulta `CREDITS.md` y `LICENSE-NOTICE.md` para conocer el origen, las dependencias y las atribuciones adicionales.
 
 ---
 
@@ -300,12 +266,15 @@ v6.8
 v6.8.1
 ```
 
-La serie 6.7.x se utilizó como línea de transición y mantenimiento durante el port y no se presenta como una serie pública independiente de la base original.
+La serie 6.7.x se utilizó como línea de transición y mantenimiento durante el port.
 
-### Descubrimiento de consola (v6.8.1)
+---
 
-La autodetección utiliza un recorrido determinista de `192.168.0.0` a `192.168.255.255`, avanzando una dirección cada vez y agrupando las direcciones en lotes de hasta 255 pings simultáneos. Cada dirección recibe una sonda ICMP con timeout configurado de 100 ms en esta implementación; solo después de una respuesta satisfactoria se confirma Garlic mediante `GET /api/status`. Si la autodetección no resuelve la consola, el usuario puede introducir manualmente la IP y el puerto en el perfil.
+## Documentación adicional
 
-
-### Autodetección de consola
-La detección de v6.8.1 utiliza `ping.exe` nativo de Windows en lotes de hasta 255 direcciones. Cada lote genera hasta 255 procesos ocultos, conserva temporalmente la salida de cada ping bajo `discovery_temp/` y, una vez finalizado el lote, solo los hosts con respuesta ICMP pasan a la validación HTTP. Se prueba `8082` como API de Garlic y, si no está activo, `9021` como puerto de `elfldr`.
+- [Build y release](./docs/BUILD_AND_RELEASE.md)
+- [Descubrimiento de consola](./docs/NETWORK_DISCOVERY.md)
+- [Validación v6.8.1](./docs/VALIDATION_v6.8.1.md)
+- [Notas de la release v6.8.1](./docs/RELEASE_v6.8.1.md)
+- [Estructura del repositorio](./REPOSITORY.md)
+- [Créditos](./CREDITS.md)

@@ -1,594 +1,141 @@
-# Créditos y agradecimientos
+# Créditos y atribuciones
 
-Garlic SaveMgr es el resultado de trabajo realizado sobre varias capas del ecosistema de **homebrew, investigación y desarrollo para PlayStation**.
+Garlic SaveMgr es un proyecto desarrollado y mantenido por **RastaFairy**. La versión pública actual del cliente de escritorio es **v6.8.1**, implementada en **C# / .NET 8 / WPF**.
 
-La aplicación es desarrollada y mantenida por **RastaFairy**, pero su existencia depende de software libre, infraestructura de payloads, herramientas de desarrollo y años de investigación compartida por la comunidad.
-
-Este documento tiene como objetivo reconocer esas aportaciones y, al mismo tiempo, distinguir claramente entre:
-
-- software utilizado directamente por Garlic SaveMgr;
-- infraestructura utilizada por el payload de PS5;
-- herramientas empleadas durante el desarrollo y empaquetado;
-- proyectos de la comunidad que aportaron conocimiento o infraestructura;
-- influencias históricas que ya no forman parte de las dependencias actuales.
+Este documento separa deliberadamente las dependencias actuales del cliente, la infraestructura externa de la PS5 y los componentes que pertenecen a la implementación histórica Python 6.6.1.
 
 ---
 
-## 1. Proyecto y mantenimiento
+## 1. Proyecto
 
-### RastaFairy — Garlic SaveMgr
+**Garlic SaveMgr**  
+Repositorio: https://github.com/RastaFairy/Garlic-SaveMgr
 
-**Autor y mantenedor:** RastaFairy  
-**Repositorio:** https://github.com/RastaFairy/Garlic-SaveMgr
+La implementación actual es responsable de la interfaz, comunicación con Garlic, backup, restore, perfiles, detección de consola, metadata, carátulas, caché de payload, logs y empaquetado.
 
-Garlic SaveMgr es desarrollado y mantenido por **RastaFairy**.
-
-El cliente actual para PC es responsable de:
-
-- la interfaz gráfica;
-- la comunicación con la PS5;
-- la gestión de copias de seguridad;
-- la gestión de restauraciones;
-- los metadatos locales de los backups;
-- la validación de compatibilidad del perfil;
-- los flujos de eliminación;
-- los indicadores de progreso;
-- el tratamiento de errores;
-- el sistema de logs;
-- la configuración de la aplicación;
-- el empaquetado y preparación de releases;
-- la documentación y mantenimiento del proyecto.
-
-La versión pública actual de esta rama es **v6.8.1**. La versión histórica de referencia del proyecto Python es **v6.6.1**.
+La implementación Python histórica se conserva en `legacy/python-6.6.1/`.
 
 ---
 
-# 2. Dependencias directas
+## 2. Dependencias actuales del cliente de PC
 
-Las siguientes tecnologías forman parte del entorno utilizado directamente por la aplicación actual para PC.
+### C# / .NET 8
 
-## Python (implementación histórica)
+La aplicación actual utiliza C# y el runtime .NET 8 para su lógica de aplicación, comunicaciones, acceso a disco, serialización JSON, criptografía y ejecución de procesos.
 
-**Proyecto:** Python  
-**Web:** https://www.python.org/  
-**Licencia:** Python Software Foundation License y licencias aplicables al componente distribuido.
+### WPF
 
-La versión histórica del cliente Garlic SaveMgr está implementada en Python; la versión pública v6.8.1 se distribuye como implementación C#/.NET 8 + WPF.
+WPF proporciona la interfaz gráfica de Windows de la versión actual.
 
-La aplicación utiliza tanto Python como su biblioteca estándar para funciones esenciales como:
+### API HTTP / bibliotecas de .NET
 
-- acceso al sistema de archivos;
-- procesamiento de JSON;
-- registros y logging;
-- ejecución y coordinación de procesos;
-- hilos;
-- gestión de configuración;
-- tratamiento de fechas y horas;
-- estructuras de datos;
-- operaciones auxiliares de la aplicación.
+El cliente utiliza `HttpClient`, `SocketsHttpHandler`, `System.Text.Json`, `System.IO.Compression` y las bibliotecas estándar de .NET. No hay una dependencia NuGet externa necesaria para la lógica principal del cliente publicada en este repositorio.
 
-Python constituye la base histórica de ejecución del cliente para PC. La implementación pública v6.8.1 utiliza C#/.NET 8 + WPF.
+### ping.exe de Windows
 
-Información legal y de licenciamiento:
-
-https://www.python.org/psf/about/legal-and-policies/
+La autodetección de v6.8.1 utiliza el `ping.exe` nativo de Windows como herramienta del sistema. Cada proceso se ejecuta oculto y su salida se guarda temporalmente durante el descubrimiento.
 
 ---
 
+## 3. Infraestructura de PS5
 
-## C# / .NET 8 + WPF
+### garlic-savemgr — earthonion
 
-La versión pública **v6.8.1** utiliza una implementación del cliente de escritorio en **C# / .NET 8 + WPF**.
+Repositorio: https://github.com/earthonion/garlic-savemgr
 
-Esta implementación cubre la interfaz gráfica, comunicación HTTP con Garlic, gestión de backups y restauraciones, perfiles, detección de consolas, metadata, carátulas, caché del payload y diagnóstico.
+`garlic-savemgr` es el servicio/payload que se ejecuta en la PS5 y proporciona la API HTTP utilizada por el cliente. La API Garlic utiliza el puerto `8082`.
 
-Tecnologías principales:
+Garlic SaveMgr es el **cliente para PC**; no reclama la autoría del payload `garlic-savemgr`.
 
-- C# / .NET 8
-- WPF
-- HttpClient
-- bibliotecas estándar de .NET
+### elfldr
 
-No se requiere una dependencia NuGet externa para la lógica principal de la aplicación.
-
-El código actual se distribuye como evolución de la aplicación original y debe conservar las obligaciones de licencia y atribución correspondientes.
-
-## PySide6 / Qt for Python
-
-**Proyecto:** Qt for Python / PySide6  
-**Web:** https://doc.qt.io/qtforpython-6/
-
-PySide6 proporcionó el framework gráfico de la implementación Python histórica.
-
-La aplicación utiliza PySide6 para elementos como:
-
-- ventanas;
-- pestañas;
-- botones;
-- tablas;
-- cuadros de diálogo;
-- barras de progreso;
-- controles de configuración;
-- señales y slots;
-- hilos de trabajo;
-- preferencias persistentes;
-- gestión del evento gráfico;
-- elementos visuales de la interfaz.
-
-La utilización del modelo de eventos y del sistema de hilos de Qt también permite mantener la interfaz responsiva durante operaciones de backup y restore que pueden tardar varios segundos.
-
-PySide6 es la integración oficial de Qt con Python.
-
-Documentación oficial:
-
-https://doc.qt.io/qtforpython-6/
-
-### Licencia
-
-Qt y PySide6 están sujetos a las condiciones de licencia correspondientes a los componentes utilizados y a la modalidad de distribución elegida, incluyendo las licencias LGPL/GPL de Qt o sus alternativas comerciales cuando correspondan.
-
-Para cualquier redistribución, debe consultarse la documentación y los términos de licencia de la versión concreta utilizada.
+El flujo de arranque utiliza un ELF loader accesible en `9021` para transferir el payload cuando Garlic todavía no está activo. `9021` no sustituye a `8082` como API de Garlic.
 
 ---
 
-## Requests
+## 4. Toolchain y comunidad PS5
 
-**Proyecto:** Requests  
-**Repositorio:** https://github.com/psf/requests  
-**Licencia:** Apache License 2.0
+### PS5 Payload SDK / OpenAGC
 
-La implementación Python histórica utiliza Requests para comunicación HTTP. La versión pública v6.8.1 utiliza `HttpClient` de .NET.
+Repositorio: https://github.com/OpenAGC/ps5-payload-sdk
 
-Se utiliza para operaciones como:
+Se reconoce como parte del ecosistema de desarrollo de payloads de PS5. No constituye una dependencia NuGet ni una biblioteca incorporada directamente al cliente C#.
 
-- peticiones HTTP;
-- transferencias de datos;
-- descargas;
-- subidas;
-- respuestas JSON;
-- tiempos de espera;
-- tratamiento de errores HTTP;
-- transferencia de datos binarios.
+### ps5-payload-dev
 
-Repositorio oficial:
+Repositorio: https://github.com/ps5-payload-dev
 
-https://github.com/psf/requests
-
-Licencia:
-
-https://github.com/psf/requests/blob/main/LICENSE
+Proyecto/ecosistema comunitario relacionado con desarrollo de payloads para PS5. La inclusión aquí es como referencia comunitaria, no como afirmación de dependencia directa de cada repositorio individual.
 
 ---
 
-# 3. Infraestructura de PS5
+## 5. Implementación histórica Python 6.6.1
 
-## garlic-savemgr — earthonion
+El snapshot histórico bajo `legacy/python-6.6.1/` utilizó tecnologías que ya no forman parte de la implementación actual publicada.
 
-**Proyecto:** garlic-savemgr  
-**Autor / mantenedor:** earthonion  
-**Repositorio:** https://github.com/earthonion/garlic-savemgr
-
-Este es uno de los componentes externos más importantes de la arquitectura de Garlic SaveMgr.
-
-Garlic SaveMgr es el **cliente de PC**. El servicio que permite gestionar los datos de guardado en la PS5 procede del proyecto `garlic-savemgr`, que actúa en el lado de la consola y proporciona la interfaz de red utilizada por el cliente.
-
-De forma conceptual:
-
-```text
-┌─────────────────────────────┐
-│             PC              │
-│                             │
-│       Garlic SaveMgr        │
-│          PySide6             │
-│              │              │
-│           Requests          │
-└──────────────┼──────────────┘
-               │
-               │ HTTP / Red local
-               │
-               ▼
-┌─────────────────────────────┐
-│             PS5             │
-│                             │
-│        garlic-savemgr       │
-│          payload            │
-│                             │
-│       Gestión de saves      │
-└─────────────────────────────┘
-```
-
-El proyecto original proporciona el servicio del lado de la PS5 y la API HTTP con la que se comunica Garlic SaveMgr.
-
-La documentación del proyecto upstream utiliza el puerto `8082` para este servicio.
-
-### Atribución
-
-La implementación del payload `garlic-savemgr` pertenece a su autor y a los colaboradores del proyecto original.
-
-Garlic SaveMgr es un proyecto independiente que proporciona el cliente de escritorio para PC.
-
-Repositorio original:
-
-https://github.com/earthonion/garlic-savemgr
-
----
-
-# 4. Ecosistema PS5 Payload SDK
-
-## OpenAGC / PS5 Payload SDK
-
-**Proyecto:** PS5 Payload SDK  
-**Repositorio:** https://github.com/OpenAGC/ps5-payload-sdk  
-**Licencia:** GPL-3.0
-
-El PS5 Payload SDK **no es una dependencia de ejecución directa del cliente Python**.
-
-Forma parte de la infraestructura utilizada para desarrollar y compilar payloads destinados a PS5. En particular, el proyecto `garlic-savemgr` utiliza este tipo de toolchain para construir su payload.
-
-Por tanto, la relación debe entenderse como:
-
-```text
-Garlic SaveMgr
-    │
-    ├── Python
-    ├── PySide6
-    └── Requests
-```
-
-mientras que en el lado de la consola:
-
-```text
-garlic-savemgr
-    │
-    └── PS5 Payload SDK
-```
-
-El SDK proporciona herramientas y componentes necesarios para el desarrollo de payloads para PS5.
-
-Repositorio:
-
-https://github.com/OpenAGC/ps5-payload-sdk
-
----
-
-## ps5-payload-dev
-
-**Organización:** ps5-payload-dev  
-**Repositorio:** https://github.com/ps5-payload-dev
-
-El ecosistema `ps5-payload-dev` reúne proyectos relacionados con el desarrollo de payloads y software de bajo nivel para PS5.
-
-Este ecosistema se reconoce como parte de la infraestructura de desarrollo sobre la que se apoya la comunidad de homebrew de PS5.
-
-No debe interpretarse que todos los proyectos de dicha organización sean dependencias directas de Garlic SaveMgr. La atribución individual debe realizarse únicamente cuando un componente concreto se utilice realmente en el proyecto.
-
----
-
-# 5. Herramientas de empaquetado
-
-## PyInstaller
-
-**Proyecto:** PyInstaller  
-**Repositorio:** https://github.com/pyinstaller/pyinstaller  
-**Licencia:** GPL-2.0-or-later
-
-PyInstaller se utiliza como herramienta opcional de empaquetado para generar ejecutables independientes de Windows a partir de la aplicación Python.
-
-Su función pertenece al proceso de **build y distribución**, no a la ejecución normal del código fuente.
-
-Conceptualmente:
-
-```text
-Código Python
-     +
-Dependencias
-     +
-Intérprete Python
-          │
-          ▼
-      PyInstaller
-          │
-          ▼
-Ejecutable Windows
-```
-
-Repositorio:
-
-https://github.com/pyinstaller/pyinstaller
-
-Documentación:
-
-https://pyinstaller.org/
-
----
-
-# 6. Qt y herramientas de desarrollo
-
-Garlic SaveMgr también se beneficia del ecosistema de herramientas que acompaña a Qt for Python.
-
-Esto incluye las herramientas disponibles junto con PySide6 para:
-
-- desarrollo;
-- depuración;
-- gestión de interfaces;
-- distribución;
-- mantenimiento de aplicaciones Qt.
-
-Estas herramientas forman parte del ecosistema de desarrollo, pero no necesariamente de la ejecución final de la aplicación.
-
-Documentación:
-
-https://doc.qt.io/qtforpython-6/
-
----
-
-# 7. Comunidad de investigación y Homebrew de PlayStation
-
-Garlic SaveMgr no existiría sin los años de trabajo realizados por la comunidad de investigación y homebrew de PlayStation.
-
-El proyecto se encuentra al final de una cadena de investigación y desarrollo que incluye, entre muchos otros ámbitos:
-
-- ingeniería inversa;
-- análisis de sistemas;
-- investigación de payloads;
-- desarrollo de SDKs;
-- investigación de sistemas de archivos;
-- análisis de savedata;
-- análisis de estructuras SFO;
-- investigación de PFS;
-- debugging;
-- desarrollo de herramientas;
-- documentación técnica;
-- pruebas y reproducción de errores.
-
-Una gran parte de este conocimiento ha sido desarrollado, documentado y compartido públicamente por investigadores y desarrolladores de la comunidad a lo largo de muchos años.
-
-Por ello, este proyecto reconoce expresamente a esa comunidad aunque un determinado desarrollo no forme parte de sus dependencias directas.
-
-Este reconocimiento implica **agradecimiento técnico y comunitario**, no una atribución de autoría sobre Garlic SaveMgr.
-
----
-
-# 8. Ecosistema de Homebrew de PS4
-
-Las primeras etapas del desarrollo de Garlic SaveMgr incluyeron diferentes experimentos relacionados con PS4, gestión de saves, resignado, transferencia entre perfiles y otros modelos de trabajo que posteriormente fueron eliminados o rediseñados.
-
-Aunque esas funciones ya no forman parte de la arquitectura actual centrada en PS5, el conocimiento generado por el ecosistema de PS4 fue una influencia relevante durante las primeras fases del proyecto.
-
-Por ese motivo se incluye aquí como **influencia histórica**, no como dependencia actual.
-
----
-
-## GoldHEN
-
-**Proyecto:** GoldHEN  
-**Repositorio:** https://github.com/GoldHEN/GoldHEN
-
-GoldHEN es un Homebrew Enabler para PS4 y **no es una dependencia actual de Garlic SaveMgr**.
-
-Se incluye en esta sección como reconocimiento al ecosistema de desarrollo y conocimiento generado alrededor del proyecto y de la comunidad de PS4.
-
-El repositorio de GoldHEN mantiene sus propios créditos y reconoce a numerosos desarrolladores e investigadores de la escena.
-
-Garlic SaveMgr no atribuye a esas personas la autoría del proyecto ni implica una relación oficial con GoldHEN.
-
-Repositorio:
-
-https://github.com/GoldHEN/GoldHEN
-
----
-
-# 9. Licencias de terceros
-
-La siguiente tabla resume las tecnologías y proyectos principales mencionados en este documento:
-
-| Componente | Función | Relación con Garlic SaveMgr | Licencia |
-|---|---|---|---|
-| Python | Runtime y biblioteca estándar | Dependencia directa | Python Software Foundation License y licencias aplicables |
-| PySide6 / Qt | Interfaz gráfica | Dependencia directa | LGPL/GPL o licencia comercial de Qt, según corresponda |
-| Requests | Comunicación HTTP | Dependencia directa | Apache License 2.0 |
-| PyInstaller | Empaquetado | Herramienta de build | GPL-2.0-or-later |
-| garlic-savemgr | Servicio de gestión de saves en PS5 | Infraestructura externa fundamental | Consultar repositorio upstream |
-| PS5 Payload SDK | Toolchain del payload | Dependencia del lado del payload | GPL-3.0 |
-| ps5-payload-dev | Ecosistema de desarrollo PS5 | Infraestructura comunitaria | Según cada repositorio |
-
-Esta tabla es un resumen orientativo y no sustituye los archivos de licencia de cada proyecto.
-
-Cuando se redistribuya software de terceros dentro de un ejecutable o paquete, deben comprobarse las obligaciones concretas derivadas de todas las dependencias realmente incluidas.
-
----
-
-# 10. Principios de atribución
-
-El proyecto intenta mantener una regla sencilla:
-
-> **Dar crédito al trabajo original por aquello que realmente aporta.**
-
-Por esta razón, este documento diferencia entre autoría, dependencia, infraestructura e influencia.
-
-La relación puede resumirse así:
-
-```text
-Garlic SaveMgr
-    = Cliente de PC
-    = Desarrollado y mantenido por RastaFairy
-```
-
-```text
-garlic-savemgr
-    = Servicio / payload de gestión de saves en PS5
-```
-
-```text
-PS5 Payload SDK
-    = Infraestructura para desarrollo y compilación de payloads
-```
-
-```text
-PySide6 / Qt
-    = Framework de interfaz gráfica
-```
-
-```text
-Requests
-    = Biblioteca de comunicación HTTP
-```
-
-```text
-PyInstaller
-    = Herramienta opcional de empaquetado
-```
-
-```text
-Comunidad PS4 / PS5
-    = Investigación, conocimientos, herramientas y ecosistema
-```
-
-Esta separación pretende evitar tanto la apropiación involuntaria de trabajo ajeno como la atribución incorrecta de responsabilidades.
-
----
-
-# 11. Agradecimientos especiales
-
-Un agradecimiento especial a:
-
-- los desarrolladores y mantenedores de `garlic-savemgr`;
-- los desarrolladores y mantenedores del PS5 Payload SDK;
-- los proyectos y mantenedores de `ps5-payload-dev`;
-- el equipo de Qt y los desarrolladores de PySide6;
-- los mantenedores y colaboradores de Requests;
-- los mantenedores y colaboradores de PyInstaller;
-- los investigadores de PS4 y PS5;
-- los desarrolladores de herramientas de análisis y debugging;
-- las personas que publican documentación y resultados de investigación;
-- los usuarios y testers que reproducen problemas y proporcionan información útil para corregirlos;
-- todas las personas que han contribuido de forma abierta al ecosistema de PlayStation Homebrew.
-
-Sin ese trabajo acumulado, una herramienta como Garlic SaveMgr no sería viable.
-
----
-
-# 12. Evolución del proyecto
-
-Garlic SaveMgr no surgió directamente con su arquitectura actual.
-
-El desarrollo pasó por numerosas etapas experimentales, entre ellas:
-
-- soporte de PS4;
-- soporte de PS5;
-- distintos modelos de consola origen/destino;
-- transferencia de saves;
-- resignado;
-- transformaciones de perfiles;
-- gestión de SFO;
-- diferentes variantes de payload;
-- distintas arquitecturas de interfaz;
-- diferentes diseños de API;
-- múltiples estrategias de backup y restore.
-
-Muchas de estas aproximaciones fueron finalmente retiradas.
-
-Su desaparición no debe interpretarse necesariamente como pérdida de trabajo: varias de ellas permitieron identificar problemas de compatibilidad, seguridad, integridad de los datos o complejidad de mantenimiento que llevaron a la arquitectura actual.
-
-La evolución completa está documentada en:
-
-[Historial completo del proyecto — changelog.md](./changelog.md)
-
----
-
-# 13. Reconocimiento a la comunidad
-
-El desarrollo de software libre y de herramientas de investigación es acumulativo.
-
-Garlic SaveMgr puede entenderse como una parte de una cadena mucho mayor:
-
-```text
-Investigación
-      ↓
-Ingeniería inversa
-      ↓
-Herramientas y SDKs
-      ↓
-Payloads
-      ↓
-Homebrew de PS4 / PS5
-      ↓
-Investigación de savedata
-      ↓
-garlic-savemgr
-      ↓
-Garlic SaveMgr
-```
-
-El proyecto reconoce esta realidad y considera que dar crédito a las herramientas, proyectos y personas que hicieron posible este ecosistema forma parte de una práctica responsable de desarrollo open source.
-
-Asimismo, si en futuras versiones se incorporan componentes externos adicionales, sus autores, proyectos y licencias deberán añadirse a este documento.
-
----
-
-# 14. Enlaces
-
-## Garlic SaveMgr
-
-https://github.com/RastaFairy/Garlic-SaveMgr
-
-## Releases
-
-https://github.com/RastaFairy/Garlic-SaveMgr/releases
-
-## Historial de cambios
-
-./changelog.md
-
-## garlic-savemgr
-
-https://github.com/earthonion/garlic-savemgr
-
-## PS5 Payload SDK
-
-https://github.com/OpenAGC/ps5-payload-sdk
-
-## ps5-payload-dev
-
-https://github.com/ps5-payload-dev
-
-## Qt for Python / PySide6
-
-https://doc.qt.io/qtforpython-6/
-
-## Requests
-
-https://github.com/psf/requests
-
-## PyInstaller
-
-https://github.com/pyinstaller/pyinstaller
-
-## Python
+### Python
 
 https://www.python.org/
 
-## GoldHEN
+### PySide6 / Qt for Python
 
-https://github.com/GoldHEN/GoldHEN
+https://doc.qt.io/qtforpython-6/
+
+### Requests
+
+https://github.com/psf/requests
+
+### PyInstaller
+
+https://github.com/pyinstaller/pyinstaller
+
+Estas referencias corresponden a la **arquitectura histórica**, no a dependencias de ejecución del cliente C#/.NET 8.
 
 ---
 
-# 15. Aviso sobre las atribuciones
+## 6. Recursos y datos externos
 
-La aparición de un proyecto, organización o persona en este documento no implica que exista una relación oficial, patrocinio o respaldo de Garlic SaveMgr, salvo que dicha relación haya sido declarada expresamente por las partes correspondientes.
+El cliente consulta servicios públicos para completar metadata, carátulas y catálogos de payload. Estas fuentes pueden cambiar o dejar de estar disponibles y no deben interpretarse como parte del código fuente de Garlic SaveMgr.
 
-Del mismo modo, un agradecimiento a un proyecto no significa que Garlic SaveMgr incorpore necesariamente su código.
+Las fuentes de payload utilizadas actualmente incluyen catálogos PLDMGR públicos. La versión v1.13 validada durante la preparación de 6.8.1 tiene como referencia el SHA-256:
 
-Los nombres de proyectos, marcas y demás elementos identificativos pertenecen a sus respectivos propietarios.
+```text
+b6d366f4101fa2fcc14a353d083ef7e45e1cc86ef457bb20502bd8680dce4d73
+```
+
+La aplicación consulta los catálogos dinámicamente para versiones posteriores.
+
+---
+
+## 7. Atribución y licencia
+
+El proyecto original Garlic SaveMgr de RastaFairy se distribuye bajo **GPL-3.0**. Este repositorio conserva `LICENSE` y `LICENSE-NOTICE.md`.
+
+Consulta también el repositorio de cada componente externo para comprobar sus licencias y obligaciones concretas de redistribución.
+
+La aparición de un proyecto o persona en este documento no implica patrocinio, relación oficial ni respaldo mutuo salvo que exista una declaración explícita de las partes correspondientes.
+
+---
+
+## 8. Agradecimientos
+
+Se agradece a los desarrolladores y mantenedores de `garlic-savemgr`, de los toolchains de payloads de PS5, de .NET, WPF y de las herramientas de la implementación histórica, así como a la comunidad de investigación y homebrew de PlayStation que comparte documentación, herramientas, pruebas y conocimiento técnico.
+
+---
+
+## 9. Enlaces
+
+- Garlic SaveMgr: https://github.com/RastaFairy/Garlic-SaveMgr
+- garlic-savemgr: https://github.com/earthonion/garlic-savemgr
+- PS5 Payload SDK: https://github.com/OpenAGC/ps5-payload-sdk
+- ps5-payload-dev: https://github.com/ps5-payload-dev
+- Qt for Python: https://doc.qt.io/qtforpython-6/
+- Requests: https://github.com/psf/requests
+- PyInstaller: https://github.com/pyinstaller/pyinstaller
+- Python: https://www.python.org/
 
 ---
 
 ## Última actualización
 
-Este documento corresponde a la arquitectura, dependencias y atribuciones de **Garlic SaveMgr v6.8.1**, manteniendo la procedencia histórica de la versión Python 6.6.1.
-
-Cualquier cambio futuro en las dependencias, componentes externos o infraestructura utilizada deberá reflejarse en este archivo.
-
----
-
+Este documento corresponde a la arquitectura y las atribuciones de **Garlic SaveMgr v6.8.1**.
