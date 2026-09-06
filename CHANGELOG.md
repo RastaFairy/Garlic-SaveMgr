@@ -1,143 +1,73 @@
-# Garlic SaveMgr — Changelog
+# Changelog — Garlic SaveMgr
 
-## v6.8.1 — 2026-09-02
+Este changelog resume las revisiones publicadas y las correcciones funcionales relevantes. La documentación canónica de reglas se mantiene en `PROJECT.md`.
 
-### Descubrimiento de consola
-- Consolidación del descubrimiento determinista mediante `ping.exe` nativo de Windows.
-- Recorrido del espacio configurado `192.168.0.0` → `192.168.255.255`.
-- Lotes de hasta 255 procesos de ping simultáneos.
-- Salida temporal individual de cada ping en `discovery_temp/`.
-- Solo los hosts con respuesta ICMP pasan a la validación de Garlic.
-- `8082` es el puerto primario de la API Garlic.
-- `9021` se comprueba como `elfldr` cuando Garlic todavía no está activo.
-- Fallback de IP manual mantenido.
-- Sin dependencia del router, ARP, SSDP o mDNS.
-- Limpieza automática de lotes de diagnóstico antiguos.
+# v6.8.7.50 — selector de consolas legible y consola activa más reciente
+- El combo de consolas mostraba el nombre del tipo (`GarlicSaveMgr.Models.Co…`) en lugar de la IP. Reproducido en vivo contra el EXE publicado 6.8.7.49 con `DisplayMemberPath` presente en el BAML: la caja de selección de un `ComboBox` con plantilla personalizada no aplicó el `DisplayMemberPath`. Fix: `ItemTemplate` explícito con `Binding DisplayName` (patrón ya usado por el combo de temas de Ajustes) y `ConsoleConnection.ToString()` → `DisplayName` como red de seguridad.
+- `EnsureIp()`: con varios perfiles históricos (p. ej. 192.168.1.211 y 192.168.1.240), la recuperación de consola activa pasa de "primera por orden de IP" a "vista más recientemente" (`LastSeenLocal`).
+- `SALUD-2.2-OBSERVABILIDAD.md`: la sección "Resolución de carátulas" describía PlayStation Catalog v2 como canónico y negaba el uso de Chihiro, contradictorio con el código desde 6.8.7.45; corregida al recorrido Chihiro `gb/en` → `us/en` → `es/es`. Solo documentación.
+- Comentario de timeout en `CoverCacheService` precisado; sin cambio funcional.
 
-### Payload y arranque
-- Preparación y caché del payload desacopladas del arranque de la UI.
-- Envío autorizado del payload a `9021/elfldr` cuando Garlic no está activo.
-- Espera posterior de Garlic en `8082`.
-- Separación entre versión de Garlic en ejecución, versión cacheada y versión anunciada por catálogo.
-- Referencia de `garlic-savemgr v1.13` validada con SHA-256 `b6d366f4101fa2fcc14a353d083ef7e45e1cc86ef457bb20502bd8680dce4d73`.
+# v6.8.7.49 — el aviso de consola no válida espera al resultado de la conexión inicial
+- Causa raíz: `TrashView` refresca el ámbito PS5 al entrar en el árbol visual; su `EnsureIp()` mostraba "No hay una consola válida conectada" durante el arranque, antes de que la detección de hasta 1.275 direcciones entregara resultado y con la configuración todavía sin consola.
+- Nueva regla `InitialConnectionGate` (`GarlicSaveMgr/Infrastructure/InitialConnectionGate.cs`): el aviso queda suprimido desde la construcción de la ventana hasta que termina `ConnectOrDiscoverAsync()`; cada intento de conexión/detección (arranque, ajustes, perfil) abre un ámbito que re-suprime el aviso mientras vive y lo libera al terminar, incluso con excepción.
+- Durante esa ventana `EnsureIp()` retorna `false` en silencio; el aviso vuelve a estar disponible en cuanto la conexión termina sin consola utilizable.
+- Regresión nueva `InitialConnectionGateTests` (supresión desde construcción, ámbito de reconexión, dispose idempotente).
 
-### Validación
-- Prueba funcional en Windows con descubrimiento satisfactorio en `192.168.1.211`.
-- Confirmación de Garlic en `8082`.
-- Envío del payload v1.13 mediante `192.168.1.211:9021`.
-- Confirmación del arranque de Garlic y escaneo posterior de 41 títulos.
+# v6.8.7.48 — fallback de región Chihiro para carátulas region-locked
+- `CoverCacheService` recorre `gb/en` → `us/en` → `es/es` en el endpoint directo `titlecontainer/{region}/999/{TitleId}_00/image`. Verificado contra el endpoint real: títulos como PPSA-01924/01736/02474/04716/03351/14251 devuelven 404 en gb/en pero imagen válida en us/en (causa de las 8 no encontradas sobre 25).
+- `NOT_FOUND` solo se declara tras agotar las regiones; la región ganadora queda memorizada por sesión para que los reintentos sigan costando una única petición; los timeouts remotos mantienen el contrato de 6.8.7.47 (`FAILED`/`remote-timeout`, sin iterar más regiones).
+- `EnsureIp()` deja de borrar la IP configurada antes del aviso de consola no válida.
+- Limpieza de código muerto en `CoverCacheService` (`IsUsableImageUrl`, `FormatTitleName`).
 
-### Identidad de versión
-- `AppInfo.Version`: `6.8.1`.
-- `AssemblyVersion`: `6.8.1.0`.
-- `FileVersion`: `6.8.1.0`.
-- `InformationalVersion`: `6.8.1`.
-- Artifact de CI: `Garlic_SaveMgr-v6.8.1-win-x64`.
+# v6.8.7.47 — CoverCacheService syntax fix
+- Fixed missing brace in CoverCacheService.cs introduced during timeout handling.
+- No functional change to source selection or SALUD telemetry.
 
-### Interfaz, biblioteca y operaciones
-- C#/.NET 8 + WPF como implementación principal.
-- Tema claro y selector persistente Simple / Detallada.
-- Biblioteca con carátulas y agrupación por juego.
-- Vista detallada con información técnica y actividad.
-- Búsqueda, filtrado y ordenación.
-- Backup PS5 → PC y restauración PC → PS5.
-- SHA-256 de backups y sidecar JSON.
-- Exportación de copias a ZIP.
-- Confirmación antes de operaciones destructivas.
-- Cancelación controlada mediante `CancellationToken`.
-- Perfiles para múltiples consolas.
-- Almacenamiento portable junto al ejecutable.
+# v6.8.7.45 — PlayStation Catalog endpoint + console-state fix
+- Corrige la ruta de detalle multimedia por `Title ID` a `/catalog/v2/titles/{TitleId}_00/concepts`.
+- Mantiene PlayStation Catalog v2 como única fuente de resolución y usa únicamente el CDN de imagen que devuelve el catálogo para descargar los bytes.
+- Añade recuperación de la consola runtime marcada como Garlic activa en `EnsureIp()` para evitar el falso diálogo de consola inválida.
+- Ajusta los tests de `CoverCacheService` a la ruta `/concepts`.
 
----
+# v6.8.7.43 — Official PlayStation Catalog single-source covers
+- Sustituye el índice KytyPS5 por el catálogo oficial de PlayStation Catalog v2 consultado directamente por Title ID.
+- Usa `PPSA######_00`/`CUSA######_00` y extrae imágenes desde `media.images[]`.
+- Mantiene caché local, deduplicación, concurrencia limitada y descarga desde el CDN oficial devuelto por el catálogo.
+- Regresión de pruebas alineada con una única fuente de resolución.
 
-## v6.8 — 2026-09-01
+# v6.8.7.43 — KytyPS5 single-source compilation fix
+- Restaura `IsUsableImageUrl` en `CoverCacheService`, requerido por la resolución del índice único KytyPS5.
+- Corrige el aviso CS8604 evitando asignar una portada nula al diccionario.
+- No cambia la arquitectura de fuente única ni la lógica de SALUD/telemetría.
+- Base funcional: v6.8.7.41; pendiente de validación Windows mediante `build.ps1`.
 
-Primera publicación de la nueva implementación C#/.NET 8 + WPF. Incluyó la nueva interfaz, perfiles, backup/restore, metadata, carátulas, caché de payload y el primer sistema de autodetección.
+# v6.8.7.43 — Fuente única de carátulas por Title ID
+- Se sustituye el resolver SerialStation por el índice único KytyPS5 `compat-index.json`.
+- Se corrige el manejo del timeout/errores del índice para que una fuente caída produzca `NOT_FOUND` sin excepción de UI.
+- Resolución directa `TitleId -> cover URL`, con una sola descarga de índice compartida entre todos los títulos.
+- Se elimina el acceso remoto del pipeline de carátulas a SerialStation, PlayStation GraphQL, Chihiro, Prospero y catálogos secundarios.
 
-La autodetección de la release inicial fue sustituida por el método de lotes de 255 pings consolidado en v6.8.1.
+# v6.8.7.43 — SerialStation timeout regression fix
+- Corrige la regresión del test `EnsureCoverAsync_BoundsRemoteResolutionWhenIndexHangs`: el timeout ahora se prueba sobre la única fuente remota real, SerialStation.
+- El test verifica `SerialStationCalls=1` e `IndexCalls=0`, alineado con la arquitectura de fuente única.
+- Se mantiene el timeout global de resolución en 5 s.
+- Sin cambios funcionales en SALUD, telemetría ni ACTUALIZADOR.
 
----
+# v6.8.7.39 — SerialStation covers / regression fixes
+- CoverCacheService usa SerialStation como única fuente remota de carátulas.
+- Resolución por Title ID en formato canónico, sin segunda consulta con variantes.
+- Timeout de resolución remota de 5 s para mantener la precarga acotada.
+- Regresión de tests actualizada: sin dependencia de Kyty/GraphQL/Chihiro/Prospero.
 
-## Línea 6.7 — transición C#
+# v6.8.7.32 — portadas fiables + SALUD/telemetría
+- Mantiene caché local y deduplicación por `TitleId`.
+- Prioriza el índice público Kyty cuando ya contiene la relación `titleId -> cover` con URL directa del CDN de PlayStation.
+- Añade catálogo `andshrew/PlayStation-Titles` para resolver `TitleId -> ContentId`, cacheado 7 días.
+- Consulta la imagen oficial de PlayStation Store/Chihiro cuando Kyty no tiene entrada.
 
-La serie 6.7 fue la línea de trabajo utilizada para convertir el cliente Python a C#/.NET 8 + WPF y depurarlo antes de la publicación de v6.8.
-
-### 6.7.1
-- Corrección de la detección de IP inválida.
-- Reducción de I/O de log durante el escaneo.
-- Sondas concurrentes y timeout corto.
-- Corrección de estados al cancelar operaciones.
-- Nombres de backup con resolución de milisegundos y protección contra colisiones.
-
-### 6.7.4
-- Flujo de arranque que comprueba Garlic y permite recuperarlo cuando no está disponible.
-- Reintento desde la interfaz.
-
-### 6.7.6
-- Caché del payload desacoplada del arranque.
-- Comparación separada entre payload en ejecución y payload catalogado.
-- Preparación de la caché sin bloquear la UI.
-
-### 6.7.7
-- Lectura de la versión de Garlic desde el HTML servido por la consola.
-- Priorización del bloque `<nav>`.
-
-### 6.7.8
-- Primera UI moderna con vistas Simple y Detallada.
-- Panel técnico opcional.
-- Rediseño de cabecera, controles y tarjetas.
-
-### 6.7.9
-- Portabilidad de configuración y datos junto al ejecutable.
-- Ajustes responsive de la vista Simple.
-
-### 6.7.10
-- Introducción de carátulas y vista Simple de biblioteca.
-- Correcciones de compilación del sistema de plantillas de carátulas.
-
-### 6.7.11
-- Ajustes de proporción de carátulas.
-- Integración del icono Garlic suministrado para la aplicación.
-
-### 6.7.12
-- Unificación visual de las pestañas Copia de seguridad / Restaurar.
-- Restauración Simple basada en tarjetas.
-
-### 6.7.13
-- Agrupación de restauraciones por juego/Título ID.
-
-### 6.7.14
-- Rediseño del selector de perfil y de los controles de pestaña.
-
-### 6.7.15
-- Corrección de las cuatro esquinas de las pestañas.
-- Separación del indicador azul del borde inferior.
-
-### 6.7.16
-- Auditoría de mantenimiento.
-- Separación del modo Simple de la configuración de consola.
-- Mejora de Ajustes y persistencia portable.
-- Bloqueo de controles durante operaciones.
-- Metadata preparada para asociar rutas de carátulas.
-
----
-
-## v6.6.1 — Python original
-
-Versión pública histórica de referencia del proyecto original de RastaFairy. Su snapshot se conserva en `legacy/python-6.6.1/`.
-
-- Corrección definitiva del flujo de eliminación de saves en consola.
-- Base funcional utilizada para la reimplementación C#.
-
----
-
-## Principio de versionado
-
-La versión de la aplicación de escritorio y la versión del payload Garlic son independientes.
-
-```text
-Aplicación PC:  v6.8.1
-Payload Garlic: v1.13 (referencia validada)
-```
-
-Una actualización del payload no cambia automáticamente la versión del cliente de escritorio.
+# v6.8.7.29 — Carátulas no intrusivas y resiliencia reforzada del payload
+- La carga de carátulas usa una cola compartida de máximo 2 trabajos y cede inmediatamente al iniciar cualquier operación de usuario.
+- Al terminar la operación, la carga se reanuda contra el estado actual; la caché de disco/memoria evita repetir trabajo ya completado.
+- La resolución remota de cada TitleId tiene una ventana total corta y timeouts acotados por fuente.
+- Se elimina el logging de éxito por cada carátula para no bombardear el dispatcher de la UI.

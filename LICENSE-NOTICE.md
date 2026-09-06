@@ -4,10 +4,6 @@
 **Repository:** https://github.com/RastaFairy/Garlic-SaveMgr  
 **License:** GNU General Public License v3.0 (GPL-3.0)
 
-## v6.8.1 C# implementation
+La implementación actual C#/.NET 8 + WPF continúa la evolución del proyecto y conserva la atribución y licencia correspondientes.
 
-The public v6.8.1 client is a C# / .NET 8 + WPF reimplementation/derivative work based on the functionality of the original Python v6.6.1 project.
-
-The historical Python implementation is preserved under `legacy/python-6.6.1/` for provenance and comparison.
-
-Keep this notice, `CREDITS.md`, and the original `LICENSE` when redistributing the project.
+Mantener este aviso, `CREDITS.md` y `LICENSE` al redistribuir el proyecto.

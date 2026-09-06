@@ -1,4 +1,4 @@
-Garlic SaveMgr v6.8.1
+Garlic SaveMgr 6.8.7.50
 Build target: net8.0-windows / win-x64
 Publish: self-contained single-file PE32+ x64
 Canonical build: .\build.ps1

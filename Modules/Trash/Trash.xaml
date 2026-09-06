@@ -1,0 +1,120 @@
+<UserControl x:Class="GarlicSaveMgr.Modules.Trash.TrashView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+            Tag="trash"
+            FontFamily="Segoe UI"
+            Background="Transparent">
+
+                        <Grid Margin="4,10,4,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                                <StackPanel Orientation="Horizontal">
+                                </StackPanel>
+                                <TextBlock x:Name="TrashSummaryLabel" DockPanel.Dock="Right" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <StackPanel Grid.Row="1" Margin="0,0,0,8">
+                                <TabControl x:Name="TrashScopeTabs" SelectionChanged="TrashScopeTabs_SelectionChanged">
+                                    <TabItem Header="PS5">
+                                        <Grid Margin="0,8,0,0">
+                                            <TextBlock Text="Un registro por juego. Los slots de cada juego se muestran juntos y permanecen en la PS5 hasta que se restauren o se eliminen definitivamente." Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8" TextWrapping="Wrap" />
+                                        </Grid>
+                                    </TabItem>
+                                    <TabItem Header="PC">
+                                        <Grid Margin="0,8,0,0">
+                                            <TextBlock Text="Un registro por juego. Los slots de cada juego se muestran juntos y las copias se conservan aquí hasta restaurarlas o eliminarlas definitivamente." Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" />
+                                        </Grid>
+                                    </TabItem>
+                                </TabControl>
+                            </StackPanel>
+                            <Grid Grid.Row="2">
+                                <DataGrid x:Name="TrashGrid" Style="{DynamicResource DataGridStyle}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="True" IsReadOnly="False" SelectionUnit="FullRow">
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow">
+                                            <Setter Property="Foreground" Value="{Binding Foreground}" />
+                                            <Setter Property="MinHeight" Value="62" />
+                                        </Style>
+                                    </DataGrid.RowStyle>
+                                    <DataGrid.Columns>
+                                        <DataGridTemplateColumn Header="✓" Width="45">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate><CheckBox IsChecked="{Binding Selected, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" /></DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTemplateColumn Header="Carátula" Width="70">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate><Image Source="{Binding CoverImage}" Width="44" Height="54" Stretch="Uniform" /></DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTextColumn Header="Title ID" Width="115" Binding="{Binding TitleId}" IsReadOnly="True" />
+                                        <DataGridTextColumn Header="Slots" Width="70" Binding="{Binding SlotCountDisplay}" IsReadOnly="True" />
+                                        <DataGridTemplateColumn Header="Savedata / slots" Width="2*">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding SlotsDisplay}" TextWrapping="Wrap" VerticalAlignment="Center" ToolTip="{Binding SlotsDisplay}" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTextColumn Header="Juego" Width="*" Binding="{Binding TitleName}" IsReadOnly="True" />
+                                        <DataGridTextColumn Header="user_id" Width="150" Binding="{Binding OwnerDisplay}" IsReadOnly="True" />
+                                        <DataGridTextColumn Header="Tamaño" Width="90" Binding="{Binding SizeDisplay}" IsReadOnly="True" />
+                                        <DataGridTemplateColumn Header="Estado" Width="120">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate><TextBlock Text="{Binding State}" Foreground="{Binding Foreground}" VerticalAlignment="Center" ToolTip="{Binding IntegrityDisplay}" /></DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTextColumn Header="Fecha" Width="145" Binding="{Binding Date}" IsReadOnly="True" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <DataGrid x:Name="PcTrashGrid" Visibility="Collapsed" Style="{DynamicResource DataGridStyle}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="True" IsReadOnly="False" SelectionUnit="FullRow">
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow">
+                                            <Setter Property="Foreground" Value="{Binding Foreground}" />
+                                            <Setter Property="MinHeight" Value="62" />
+                                        </Style>
+                                    </DataGrid.RowStyle>
+                                    <DataGrid.Columns>
+                                        <DataGridTemplateColumn Header="✓" Width="45">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate><CheckBox IsChecked="{Binding Selected, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" /></DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTemplateColumn Header="Carátula" Width="70">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate><Image Source="{Binding CoverImage}" Width="44" Height="54" Stretch="Uniform" /></DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTextColumn Header="Title ID" Width="115" Binding="{Binding TitleId}" IsReadOnly="True" />
+                                        <DataGridTextColumn Header="Slots" Width="70" Binding="{Binding SlotCountDisplay}" IsReadOnly="True" />
+                                        <DataGridTemplateColumn Header="Savedata / slots" Width="2*">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate><TextBlock Text="{Binding SlotsDisplay}" TextWrapping="Wrap" VerticalAlignment="Center" ToolTip="{Binding SlotsDisplay}" /></DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTextColumn Header="Juego" Width="*" Binding="{Binding TitleName}" IsReadOnly="True" />
+                                        <DataGridTextColumn Header="Origen" Width="160" Binding="{Binding SourceConsole}" IsReadOnly="True" />
+                                        <DataGridTextColumn Header="Tamaño" Width="90" Binding="{Binding SizeDisplay}" IsReadOnly="True" />
+                                        <DataGridTemplateColumn Header="Estado" Width="120">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate><TextBlock Text="{Binding State}" Foreground="{Binding Foreground}" VerticalAlignment="Center" ToolTip="{Binding IntegrityDisplay}" /></DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTextColumn Header="Fecha" Width="145" Binding="{Binding Date}" IsReadOnly="True" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+                            <Grid Grid.Row="3" Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <TextBlock x:Name="TrashHintLabel" Grid.Column="0" Text="La integridad de la Papelera se comprueba automáticamente antes de restaurar o eliminar." Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button x:Name="RestoreTrashButton" Width="175" Height="38" Click="RestoreTrash_Click"><TextBlock Text="Restaurar seleccionados" TextWrapping="NoWrap" TextAlignment="Center" /></Button>
+                                    <Button x:Name="DeleteTrashButton" Width="200" Height="38" Margin="8,0,0,0" Click="DeleteTrash_Click"><TextBlock Text="Eliminar definitivamente" TextWrapping="NoWrap" TextAlignment="Center" /></Button>
+                                    <Button x:Name="EmptyTrashButton" Width="125" Height="38" Margin="8,0,0,0" Click="EmptyTrash_Click"><TextBlock Text="Vaciar papelera" TextWrapping="NoWrap" TextAlignment="Center" /></Button>
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                    
+</UserControl>

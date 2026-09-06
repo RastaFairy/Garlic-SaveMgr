@@ -1,28 +1,28 @@
 # Estructura del repositorio
 
 ```text
-GarlicSaveMgr/
-  Código fuente C#/.NET 8 + WPF de la versión pública v6.8.1.
-
-legacy/python-6.6.1/
-  Snapshot del cliente Python original que sirvió como referencia funcional.
-
-.github/workflows/
-  Integración continua para compilar Windows x64.
-
-.github/ISSUE_TEMPLATE/
-  Plantillas para incidencias.
-
-.github/PULL_REQUEST_TEMPLATE.md
-  Plantilla para pull requests.
-
-docs/
-  Documentación de build, release, descubrimiento y validación.
-
-*.png / *.ico / *.jpg
-  Recursos y capturas históricas del proyecto.
+GarlicSaveMgr.sln
+GarlicSaveMgr/                 # host + servicios core
+Modules/
+  Security/                    # módulo de seguridad
+  Trash/                       # módulo de Papelera
+  Salud/                       # observabilidad
+  Updater/                     # actualizador
+GarlicSaveMgr.Tests/           # regresiones
+Themes/                        # plantilla de temas
+.github/                       # CI / issue / PR templates
+docs/                          # documentación canónica
 ```
 
-El repositorio no incluye datos personales, perfiles de consola, carátulas descargadas, payloads cacheados ni backups generados por el usuario.
+El repositorio fuente no incluye datos personales ni artefactos de ejecución. Los siguientes directorios deben permanecer fuera de Git:
 
-Los directorios generados localmente (`bin/`, `obj/`, `publish/`, `data/`, `covers/`, `payload_cache/`, `garlic_saves/` y `discovery_temp/`) deben permanecer fuera de Git mediante `.gitignore`.
+```text
+bin/
+obj/
+publish/
+data/
+covers/
+payload_cache/
+garlic_saves/
+discovery_temp/
+```

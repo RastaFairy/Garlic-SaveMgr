@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>Library</OutputType>
+    <AssemblyName>GarlicSaveMgr.SaludModule</AssemblyName>
+    <RootNamespace>GarlicSaveMgr.Modules.Salud</RootNamespace>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AssemblyVersion>6.8.7.0</AssemblyVersion>
+    <FileVersion>6.8.7.0</FileVersion>
+    <InformationalVersion>6.8.7.50-salud-2.2</InformationalVersion>
+
+    <!--
+      Preferred override for unusual layouts:
+      dotnet build /p:HostProjectPath="C:\...\GarlicSaveMgr.csproj"
+      or
+      dotnet build /p:HostAssemblyPath="C:\...\Garlic_SaveMgr.dll"
+    -->
+    <HostProjectPath Condition="'$(HostProjectPath)' == ''">$(MSBuildThisFileDirectory)..\..\GarlicSaveMgr\GarlicSaveMgr.csproj</HostProjectPath>
+    <HostAssemblyPath Condition="'$(HostAssemblyPath)' == ''">$(MSBuildThisFileDirectory)..\..\GarlicSaveMgr\bin\$(Configuration)\net8.0-windows\Garlic_SaveMgr.dll</HostAssemblyPath>
+  </PropertyGroup>
+
+  <!-- Preferred: compile against the host project when it is present. -->
+  <ItemGroup Condition="Exists('$(HostProjectPath)')">
+    <ProjectReference Include="$(HostProjectPath)" ReferenceOutputAssembly="true" />
+  </ItemGroup>
+
+  <!-- Fallback: compile against an already-built host when source is not present. -->
+  <ItemGroup Condition="!Exists('$(HostProjectPath)') and Exists('$(HostAssemblyPath)')">
+    <Reference Include="Garlic_SaveMgr">
+      <HintPath>$(HostAssemblyPath)</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="ValidateHostReference" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(HostProjectPath)') and !Exists('$(HostAssemblyPath)')"
+           Text="No se ha encontrado el contrato/ensamblado del host. HostProjectPath='$(HostProjectPath)' HostAssemblyPath='$(HostAssemblyPath)'. Usa /p:HostProjectPath=... o /p:HostAssemblyPath=... con la ruta real de Garlic SaveMgr." />
+  </Target>
+</Project>
