@@ -1,0 +1,374 @@
+<Window x:Class="GarlicSaveMgr.MainWindow"
+        Icon="garlicon.ico"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Garlic SaveMgr v6.8.7.50"
+        Width="1100"
+        Height="720"
+        MinWidth="760"
+        MinHeight="540"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource AppBackground}"
+        FontFamily="Segoe UI">
+    <Window.Resources>
+        <DataTemplate x:Key="SimpleGameTemplate">
+            <Border Width="170" Margin="6" Background="{DynamicResource Surface}" CornerRadius="14" Padding="8" MouseLeftButtonUp="SimpleGameCard_Click" ToolTip="Haz clic para seleccionar/deseleccionar">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="BorderBrush" Value="{DynamicResource BorderSoft}" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Selected}" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+                                <Setter Property="BorderThickness" Value="2" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <StackPanel>
+                        <Border Width="152" Height="152" CornerRadius="10" Background="{DynamicResource SurfaceSoft}" HorizontalAlignment="Center">
+                            <Image Source="{Binding CoverImage}" Stretch="Uniform" RenderOptions.BitmapScalingMode="LowQuality" />
+                        </Border>
+                        <TextBlock Text="{Binding TitleName}" Margin="4,9,4,0" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" MaxHeight="38" />
+                    </StackPanel>
+                    <Border Width="24" Height="24" CornerRadius="12" Background="{DynamicResource Accent}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="2">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Selected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="✓" Foreground="{DynamicResource OnAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Border>
+        </DataTemplate>
+        <DataTemplate x:Key="SimpleRestoreGameTemplate">
+            <Border Width="170" Margin="6" Background="{DynamicResource Surface}" CornerRadius="14" Padding="8"
+                    MouseLeftButtonUp="SimpleRestoreGameCard_Click" ToolTip="Haz clic para seleccionar/deseleccionar todos los slots de este juego">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="BorderBrush" Value="{DynamicResource BorderSoft}" />
+                        <Setter Property="BorderThickness" Value="1" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Selected}" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+                                <Setter Property="BorderThickness" Value="2" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <StackPanel>
+                        <Border Width="152" Height="152" CornerRadius="10" Background="{DynamicResource SurfaceSoft}" HorizontalAlignment="Center" ClipToBounds="True">
+                            <Image Source="{Binding CoverImage}" Stretch="Uniform" RenderOptions.BitmapScalingMode="LowQuality" />
+                        </Border>
+                        <TextBlock Text="{Binding TitleName}" Margin="4,9,4,0" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" MaxHeight="38" />
+                        <TextBlock Text="{Binding BackupCountText}" Margin="4,3,4,0" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondary}" />
+                    </StackPanel>
+                    <Border Width="24" Height="24" CornerRadius="12" Background="{DynamicResource Accent}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="2">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Selected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="✓" Foreground="{DynamicResource OnAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Border>
+        </DataTemplate>
+        <DataTemplate x:Key="SimpleBackupTemplate">
+            <Border Width="170" Margin="6" Background="{DynamicResource Surface}" CornerRadius="14" Padding="8"
+                    MouseLeftButtonUp="SimpleBackupCard_Click" ToolTip="Haz clic para seleccionar/deseleccionar">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="BorderBrush" Value="{DynamicResource BorderSoft}" />
+                        <Setter Property="BorderThickness" Value="1" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Selected}" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+                                <Setter Property="BorderThickness" Value="2" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <StackPanel>
+                        <Border Width="152" Height="152" CornerRadius="10" Background="{DynamicResource SurfaceSoft}" HorizontalAlignment="Center" ClipToBounds="True">
+                            <Image Source="{Binding CoverImage}" Stretch="Uniform" RenderOptions.BitmapScalingMode="LowQuality" />
+                        </Border>
+                        <TextBlock Text="{Binding TitleName}" Margin="4,9,4,0" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" MaxHeight="38" />
+                    </StackPanel>
+                    <Border Width="24" Height="24" CornerRadius="12" Background="{DynamicResource Accent}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="2">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Selected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="✓" Foreground="{DynamicResource OnAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="14" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="14" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="14" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Modern header -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorder}" Padding="16,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="40" Height="40" CornerRadius="10" Background="{DynamicResource AccentSoft}" Margin="0,0,12,0" ClipToBounds="True">
+                        <Image Source="garlic-app-icon.png" Width="40" Height="40" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="LowQuality" />
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="Garlic SaveMgr" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                        <TextBlock Text="Gestión de copias de seguridad para Garlic" FontSize="12" Foreground="{DynamicResource TextSecondary}" />
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="{DynamicResource SurfaceSoft}" CornerRadius="8" Padding="10,6" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Consola" Style="{StaticResource SectionLabel}" Margin="0,0,6,0" />
+                            <TextBlock x:Name="ConsoleLabel" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Background="{DynamicResource SurfaceSoft}" CornerRadius="8" Padding="4" Margin="0,0,6,0">
+                        <ToggleButton x:Name="ViewModeToggle" Width="96" Height="30" IsChecked="False" Click="ViewModeToggle_Click" Background="{DynamicResource Surface}">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="7" Padding="2">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                            <TextBlock x:Name="ViewModeLabel" Text="Detallada" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" />
+                        </ToggleButton>
+                    </Border>
+                    <TextBlock Text="Consola" Style="{StaticResource SectionLabel}" VerticalAlignment="Center" Margin="8,0,5,0" />
+                    <ComboBox x:Name="ProfileCombo" Width="170" SelectionChanged="ProfileCombo_SelectionChanged">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button x:Name="SettingsButton" Width="92" Click="Settings_Click">Ajustes</Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Runtime status cards -->
+        <Grid x:Name="DetailedStatusCards" Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,8,0" Padding="12">
+                <StackPanel><TextBlock Text="Garlic" Style="{StaticResource SectionLabel}" /><TextBlock x:Name="GarlicStatusLabel" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,3,0,0" /></StackPanel>
+            </Border>
+            <Border Grid.Column="1" Style="{StaticResource CardBorder}" Margin="4,0" Padding="12">
+                <StackPanel><TextBlock Text="En ejecución" Style="{StaticResource SectionLabel}" /><TextBlock x:Name="GarlicVersionLabel" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" /></StackPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource CardBorder}" Margin="4,0" Padding="12">
+                <StackPanel><TextBlock Text="Payload cache" Style="{StaticResource SectionLabel}" /><TextBlock x:Name="PayloadCacheLabel" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" /></StackPanel>
+            </Border>
+            <Border Grid.Column="3" Style="{StaticResource CardBorder}" Margin="8,0,0,0" Padding="12">
+                <StackPanel><TextBlock Text="Comparación" Style="{StaticResource SectionLabel}" /><TextBlock x:Name="PayloadComparisonLabel" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" /></StackPanel>
+            </Border>
+        </Grid>
+
+        <Border x:Name="SimpleHintPanel" Grid.Row="2" Visibility="Collapsed" Style="{StaticResource CardBorder}" Background="{DynamicResource SurfaceHover}" Padding="14">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Modo Simple" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,8,0" />
+                <TextBlock Text="Vista centrada en las acciones y en los datos esenciales. Cambia a Detallada para ver log, propietarios y hashes." Foreground="{DynamicResource TextSecondary}" />
+            </StackPanel>
+        </Border>
+
+        <Grid x:Name="MainContentGrid" Grid.Row="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2.2*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border x:Name="MainTabsHost" Grid.Column="0" Style="{StaticResource CardBorder}" Padding="12">
+                <TabControl x:Name="MainTabs" SelectionChanged="MainTabs_SelectionChanged">
+                    <TabItem Header="COPIAR">
+                        <Grid Margin="4,10,4,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <Button x:Name="AutoDetectButton" Width="140" Click="AutoDetect_Click">Detectar consola</Button>
+                                    <Button x:Name="ScanButton" Width="88" Click="Scan_Click">Escanear</Button>
+                                </StackPanel>
+                                <TextBlock x:Name="UidLabel" Text="user_id" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" Margin="0,0,8,0" />
+                                <TextBox x:Name="UidBox" Width="240" />
+                            </DockPanel>
+                            <DockPanel Grid.Row="1" Margin="0,0,0,8">
+                                <TextBlock x:Name="BackupCountLabel" DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" Margin="10,0,0,0">0 títulos</TextBlock>
+                                <Button Width="82" Click="SelectAllBackup_Click">Todos</Button><Button Width="82" Click="SelectNoneBackup_Click">Ninguno</Button>
+                                <TextBox x:Name="BackupSearchBox" Width="250" Margin="10,0,0,0" ToolTip="Buscar por título o nombre" TextChanged="BackupSearch_TextChanged" />
+                            </DockPanel>
+                            <Grid Grid.Row="2">
+                                <ScrollViewer x:Name="SimpleGamesScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
+                                    <ItemsControl x:Name="SimpleGamesList" ItemsSource="{Binding}" ItemTemplate="{StaticResource SimpleGameTemplate}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><WrapPanel IsItemsHost="True" HorizontalAlignment="Center" /></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <DataGrid x:Name="BackupGrid" Style="{StaticResource DataGridStyle}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="True" IsReadOnly="False" SelectionUnit="FullRow">
+                                <DataGrid.RowStyle><Style TargetType="DataGridRow"><Setter Property="Foreground" Value="{Binding Foreground}" /></Style></DataGrid.RowStyle>
+                                <DataGrid.Columns>
+                                    <DataGridCheckBoxColumn Header="✓" Width="45" Binding="{Binding Selected, UpdateSourceTrigger=PropertyChanged}" SortMemberPath="Selected" />
+                                    <DataGridTemplateColumn Header="Carátula" Width="72" SortMemberPath="TitleName">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate><Image Source="{Binding CoverImage}" Width="48" Height="48" Stretch="Uniform" RenderOptions.BitmapScalingMode="LowQuality" /></DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Title ID" Width="120" IsReadOnly="True" Binding="{Binding TitleId}" ElementStyle="{StaticResource StatusCellStyle}" SortMemberPath="TitleId" />
+                                    <DataGridTextColumn Header="Slots" Width="65" IsReadOnly="True" Binding="{Binding SlotCount}" ElementStyle="{StaticResource StatusCellStyle}" SortMemberPath="SlotCount" />
+                                    <DataGridTextColumn Header="Nombre" Width="*" IsReadOnly="True" Binding="{Binding TitleName}" ElementStyle="{StaticResource StatusCellStyle}" SortMemberPath="TitleName" />
+                                    <DataGridTextColumn Header="UID" Width="180" IsReadOnly="True" Binding="{Binding Uid}" ElementStyle="{StaticResource StatusCellStyle}" SortMemberPath="Uid" />
+                                    <DataGridTextColumn Header="Estado" Width="95" IsReadOnly="True" Binding="{Binding State}" ElementStyle="{StaticResource StatusCellStyle}" SortMemberPath="State" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            </Grid>
+                            <ProgressBar x:Name="BackupProgress" Grid.Row="3" Height="7" Margin="0,8,0,8" />
+                            <Grid Grid.Row="4" Margin="0,2,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <Button x:Name="BackupButton" Grid.Column="0" Height="38" Margin="0,0,12,0" Style="{StaticResource PrimaryButton}" Click="Backup_Click"><TextBlock Text="Guardar copia" TextWrapping="NoWrap" TextAlignment="Center" /></Button>
+                                <CheckBox x:Name="SmartBackupCheckBox" Grid.Column="1" Margin="0,0,12,0" IsChecked="True" VerticalAlignment="Center" Content="Smart Backup" ToolTip="Omite la copia solo cuando Garlic confirma que tamaño y marca temporal no han cambiado." />
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button x:Name="CancelButton" Width="92" Height="38" Margin="4,0,0,0" IsEnabled="False" Click="Cancel_Click">Cancelar</Button>
+                                    <Button x:Name="DeleteConsoleButton" Width="165" Height="38" Margin="8,0,0,0" Click="DeleteConsole_Click"><TextBlock Text="Eliminar de consola" TextWrapping="NoWrap" TextAlignment="Center" /></Button>
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                    </TabItem>
+                    <TabItem Header="RESTAURAR">
+                        <Grid Margin="4,10,4,0">
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                                <TextBox x:Name="RestoreSearchBox" Width="250" Margin="10,0,0,0" ToolTip="Buscar por título, nombre, propietario, fecha o slots" TextChanged="RestoreSearch_TextChanged" />
+                            </DockPanel>
+                            <DockPanel Grid.Row="1" Margin="0,0,0,8">
+                                <TextBlock x:Name="RestoreCountLabel" DockPanel.Dock="Right" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="10,0,0,0">0 juegos · 0 slots</TextBlock>
+                                <Button Width="82" Click="SelectAllRestore_Click">Todos</Button><Button Width="82" Click="SelectNoneRestore_Click">Ninguno</Button><Button x:Name="ExportZipButton" Width="125" Click="ExportZip_Click">Exportar ZIP</Button>
+                            </DockPanel>
+                            <Grid Grid.Row="2">
+                                <ScrollViewer x:Name="SimpleRestoreScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
+                                    <ItemsControl x:Name="SimpleRestoreList" ItemTemplate="{StaticResource SimpleRestoreGameTemplate}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><WrapPanel IsItemsHost="True" HorizontalAlignment="Center" /></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <DataGrid x:Name="RestoreGrid" Style="{StaticResource DataGridStyle}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="True" IsReadOnly="False" SelectionUnit="FullRow" ToolTip="Cada fila representa un juego. Seleccionar una fila incluye todos sus savedata/slots.">
+                                <DataGrid.RowStyle><Style TargetType="DataGridRow"><Setter Property="Foreground" Value="{Binding Foreground}" /></Style></DataGrid.RowStyle>
+                                <DataGrid.Columns>
+                                    <DataGridCheckBoxColumn Header="✓" Width="45" Binding="{Binding Selected, UpdateSourceTrigger=PropertyChanged}" />
+                                    <DataGridTemplateColumn Header="Carátula" Width="72">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate><Image Source="{Binding CoverImage}" Width="48" Height="48" Stretch="Uniform" RenderOptions.BitmapScalingMode="LowQuality" /></DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Title ID" Width="120" IsReadOnly="True" Binding="{Binding TitleId}" ElementStyle="{StaticResource StatusCellStyle}" SortMemberPath="TitleId" />
+                                    <DataGridTextColumn Header="Slots" Width="70" IsReadOnly="True" Binding="{Binding BackupCount}" ElementStyle="{StaticResource StatusCellStyle}" SortMemberPath="BackupCount" />
+                                    <DataGridTextColumn Header="Nombre" Width="*" IsReadOnly="True" Binding="{Binding TitleName}" ElementStyle="{StaticResource StatusCellStyle}" SortMemberPath="TitleName" />
+                                    <DataGridTextColumn Header="Propietario" Width="190" IsReadOnly="True" Binding="{Binding OwnerDisplay}" ElementStyle="{StaticResource StatusCellStyle}" SortMemberPath="OwnerDisplay" />
+                                    <DataGridTextColumn Header="Última copia" Width="145" IsReadOnly="True" Binding="{Binding LatestDate}" ElementStyle="{StaticResource StatusCellStyle}" SortMemberPath="LatestDate" />
+                                    <DataGridTemplateColumn Header="Estado" Width="145" SortMemberPath="State">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding State}"
+                                                           Foreground="{Binding Foreground}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           VerticalAlignment="Center"
+                                                           ToolTip="{Binding SlotStatesDisplay}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+                            <ProgressBar x:Name="RestoreProgress" Grid.Row="3" Height="7" Margin="0,8,0,8" />
+                            <Grid Grid.Row="4" Margin="0,2,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                    <TextBlock Text="Los slots seleccionados se restauran usando el mismo sistema de backup de 6.8.1." Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,6" />
+                                    <Button x:Name="RestoreButton" Height="38" Style="{StaticResource PrimaryButton}" Click="Restore_Click"><TextBlock Text="Restaurar seleccionados" TextWrapping="NoWrap" TextAlignment="Center" /></Button>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                                    <Button x:Name="CancelRestoreButton" Width="98" Height="38" Margin="4,0,0,0" IsEnabled="False" Click="Cancel_Click">Cancelar</Button>
+                                    <Button x:Name="DeleteLocalButton" Width="165" Height="38" Margin="8,0,0,0" Click="DeleteLocal_Click"><TextBlock Text="Mover a Papelera" TextWrapping="NoWrap" TextAlignment="Center" /></Button>
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                    </TabItem>
+                    
+                    
+                    
+                </TabControl>
+            </Border>
+
+            <Border x:Name="DetailedLogPanel" Grid.Column="1" Style="{StaticResource CardBorder}" Padding="12" Margin="10,0,0,0">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="4,2,4,8"><TextBlock Text="Actividad" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" /><TextBlock Text=" · tiempo real" Foreground="{DynamicResource TextSecondary}" Margin="5,0,0,0" /></DockPanel>
+                    <RichTextBox x:Name="LogBox" Grid.Row="1" IsReadOnly="True" Background="{DynamicResource LogBackground}" BorderBrush="{DynamicResource BorderSoft}" BorderThickness="1" Padding="8" VerticalScrollBarVisibility="Auto" />
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0"><Button Click="OpenBackups_Click">Copias</Button><Button Click="OpenLogs_Click">Logs</Button></StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <StatusBar Grid.Row="6" Background="Transparent" Padding="0" BorderThickness="0">
+            <StatusBarItem>
+                <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource BorderSoft}" BorderThickness="1" CornerRadius="10" Padding="12,7">
+                    <TextBlock x:Name="StatusLabel" Foreground="{DynamicResource TextSecondary}">Listo.</TextBlock>
+                </Border>
+            </StatusBarItem>
+            <StatusBarItem HorizontalContentAlignment="Right">
+                <TextBlock x:Name="AppVersionFooter" Foreground="{DynamicResource TextSecondary}" Margin="10,0,0,0" />
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>
