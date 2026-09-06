@@ -20,6 +20,29 @@
 
 > Este árbol es **fuente de GitHub**. No incluye `bin/`, `obj/`, `publish/`, datos de usuario, backups, cachés ni payloads generados localmente.
 
+## Transparencia: auditoría y trabajo futuro
+
+La revisión 6.8.7.50 ha sido auditada y mantiene una lista pública de hallazgos técnicos conocidos que **no se han considerado motivo para invalidar esta versión**, pero que quedan registrados como deuda técnica para futuras revisiones.
+
+Consulta el registro completo y su trazabilidad en **[Issue #3 — Auditoría v6.8.7.50](https://github.com/RastaFairy/Garlic-SaveMgr/issues/3)**.
+
+Entre los puntos actualmente documentados se encuentran:
+
+- endurecimiento del ciclo de vida de cancelación de `OperationRunner`;
+- verificación criptográfica del ejecutable descargado por el actualizador;
+- separación entre estado de conexión detectado y conectividad realmente comprobada;
+- concurrencia controlada durante el descubrimiento LAN;
+- política de fuentes y concurrencia para la resolución de metadatos;
+- cierre limpio de cargas de carátulas pendientes antes de sustituir su token de cancelación.
+
+Estos puntos se corregirán cuando exista una implementación adecuada, pruebas de regresión y documentación actualizada. **No se realizarán cambios apresurados únicamente para eliminar la lista de issues.**
+
+### Participación de usuarios
+
+Los usuarios pueden ayudar a mejorar el proyecto reportando nuevos problemas en GitHub. Un reporte útil debería incluir, cuando sea posible, la versión de Garlic SaveMgr, pasos para reproducir el problema, comportamiento esperado, comportamiento observado y fragmentos relevantes de los logs.
+
+Los nuevos reportes se incorporarán a futuras auditorías y revisiones para mejorar progresivamente la estabilidad, compatibilidad y experiencia de uso.
+
 ## Arquitectura
 
 ```text
